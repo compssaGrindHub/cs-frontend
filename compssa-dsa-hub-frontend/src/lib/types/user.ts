@@ -3,16 +3,18 @@ export interface User {
   username: string;
   email: string;
   role: 'USER' | 'ADMIN' | 'INSTRUCTOR';
-  firstName?: string;
-  lastName?: string;
-  profilePicture?: string;
-  codeforcesHandle?: string;
-  leetcodeUsername?: string;
-  githubUsername?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  profilePicture?: string | null;
+  codeforcesHandle?: string | null;
+  leetcodeUsername?: string | null;
+  githubUsername?: string | null;
+  githubRepo?: string | null;
   totalRating: number;
-  globalRank?: number;
+  globalRank?: number | null;
   currentStreak: number;
   longestStreak: number;
+  lastActiveDate?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -21,35 +23,43 @@ export interface UserStats {
   totalProblems: number;
   solvedProblems: number;
   contestsParticipated: number;
-  averageRank: number;
-  topicBreakdown: TopicStats[];
-  recentSubmissions: Submission[];
-  ratingHistory: RatingPoint[];
+  averageRank: number | null;
+  topicBreakdown: Array<{
+    topic: string;
+    count: number;
+  }>;
+  recentSubmissions: Array<{
+    id: string;
+    problemTitle: string;
+    status: string;
+    language: string;
+    submissionTime: string;
+  }>;
+  ratingHistory: Array<{
+    contestName: string;
+    date: string;
+    ratingChange: number;
+    newRating: number;
+  }>;
 }
 
-export interface TopicStats {
-  topic: string;
-  solved: number;
-  total: number;
-  percentage: number;
-  difficulty: {
-    easy: number;
-    medium: number;
-    hard: number;
-  };
+export interface UserProgress {
+  topics: Array<{
+    name: string;
+    solved: number;
+    total: number;
+    percentage: number;
+    difficulty: {
+      easy: number;
+      medium: number;
+      hard: number;
+    };
+  }>;
 }
 
-export interface RatingPoint {
+export interface UserActivity {
+  type: string;
   date: string;
-  rating: number;
-  contest: string;
-}
-
-export interface Submission {
-  id: string;
-  problemId: string;
-  problemTitle: string;
-  status: string;
-  language: string;
-  createdAt: string;
+  description: string;
+  metadata?: any;
 }

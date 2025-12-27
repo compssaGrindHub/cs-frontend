@@ -258,7 +258,7 @@ export default function ProfilePage() {
   const stats = userStats?.data;
   const rank = rankData?.data?.rank || 0;
   const activities = Array.isArray(activityData?.data) ? activityData.data : [];
-  const progress = Array.isArray(progressData?.data?.topics) ? progressData.data.topics : [];
+  const progress = progressData?.data?.topics || [];
   const achievements = Array.isArray(achievementsData?.data) ? achievementsData.data : [];
 
   // Generate contribution data from submissions (simplified)
@@ -479,7 +479,7 @@ export default function ProfilePage() {
                       : 'text-blue-500 bg-blue-500/10';
                     
                     return (
-                      <div key={activity.id || activity.date} className="flex gap-3 pb-3 border-b border-border last:border-0 last:pb-0">
+                      <div key={`${activity.type}-${activity.date}-${activity.description}`} className="flex gap-3 pb-3 border-b border-border last:border-0 last:pb-0">
                         <div className={`w-8 h-8 rounded-lg ${color} flex items-center justify-center flex-shrink-0`}>
                           <Icon className="w-4 h-4" />
                         </div>
@@ -509,7 +509,7 @@ export default function ProfilePage() {
                 <h2 className="text-lg font-semibold text-foreground mb-4">Topic Strength</h2>
                 {progress.length > 0 ? (
                   <div className="space-y-4">
-                    {progress.map((topic: { name: string; solved: number; total: number; percentage: number; difficulty?: any }) => (
+                    {progress.map((topic: { name: string; solved: number; total: number; percentage: number; difficulty: { easy: number; medium: number; hard: number } }) => (
                       <div key={topic.name}>
                         <div className="flex items-center justify-between mb-2">
                           <p className="text-sm text-foreground">{topic.name}</p>

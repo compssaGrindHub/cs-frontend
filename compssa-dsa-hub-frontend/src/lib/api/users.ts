@@ -1,6 +1,6 @@
 import apiClient from './client';
 import { ApiResponse } from '@/lib/types/api';
-import { User, UserStats } from '@/lib/types/user';
+import { User, UserStats, UserProgress, UserActivity } from '@/lib/types/user';
 
 // Request types
 interface UpdateUserRequest {
@@ -82,8 +82,8 @@ export const getUserStats = async (id: string): Promise<ApiResponse<UserStats>> 
  * Get user progress
  * GET /api/users/:id/progress
  */
-export const getUserProgress = async (id: string): Promise<ApiResponse<any>> => {
-  const response = await apiClient.get<ApiResponse<any>>(`/users/${id}/progress`);
+export const getUserProgress = async (id: string): Promise<ApiResponse<UserProgress>> => {
+  const response = await apiClient.get<ApiResponse<UserProgress>>(`/users/${id}/progress`);
   return response.data;
 };
 
@@ -91,8 +91,8 @@ export const getUserProgress = async (id: string): Promise<ApiResponse<any>> => 
  * Get user activity
  * GET /api/users/:id/activity
  */
-export const getUserActivity = async (id: string, limit?: number): Promise<ApiResponse<any[]>> => {
-  const response = await apiClient.get<ApiResponse<any[]>>(`/users/${id}/activity`, {
+export const getUserActivity = async (id: string, limit?: number): Promise<ApiResponse<UserActivity[]>> => {
+  const response = await apiClient.get<ApiResponse<UserActivity[]>>(`/users/${id}/activity`, {
     params: { limit },
   });
   return response.data;
