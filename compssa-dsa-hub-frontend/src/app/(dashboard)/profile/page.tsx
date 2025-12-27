@@ -1,5 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useAuthStore } from '@/lib/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,6 +22,17 @@ import {
   MessageSquare,
   Eye
 } from 'lucide-react';
+import { Loading } from '@/components/common/Loading';
+import { EmptyState } from '@/components/common/EmptyState';
+import { 
+  getCurrentUser, 
+  getUserStats, 
+  getUserRank,
+  getUserActivity,
+  getUserProgress
+} from '@/lib/api';
+import { getUserAchievements } from '@/lib/api/achievements';
+import { format, formatDistanceToNow } from 'date-fns';
 
 // GitHub-style contribution data (52 weeks x 7 days)
 const generateContributionData = () => {
@@ -126,7 +140,164 @@ const languages = [
 ];
 
 export default function ProfilePage() {
+  const { user: currentUser, isAuthenticated, syncAuthState } = useAuthStore();
+
+  // Sync auth state on mount to ensure user is available
+  useEffect(() => {
+    syncAuthState();
+  }, [syncAuthState]);
+
+  // Debug: Log current user state
+  useEffect(() => {
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      console.log('[Profile] Current user from store:', {
+        hasUser: !!currentUser,
+        userId: currentUser?.id,
+        isAuthenticated,
+        userObject: currentUser,
+      });
+    }
+  }, [currentUser, isAuthenticated]);
+
+  // Use user from store as primary source - queries are for refreshing data
+  // Only fetch if we have a user ID from the store
+  const userId = currentUser?.id;
+
+  // Fetch fresh user data (optional - we have user from store)
+  const { data: userData, isLoading: userLoading, error: userError } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: async () => {
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        console.log('[Profile] Fetching current user from API...');
+      }
+      const result = await getCurrentUser();
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        console.log('[Profile] Current user API response:', result);
+      }
+      return result;
+    },
+    enabled: isAuthenticated && !!userId,
+    retry: 1,
+    // Don't block UI if this fails - we have user from store
+    refetchOnWindowFocus: false,
+  });
+
+  // Fetch user stats
+  const { data: userStats, isLoading: statsLoading, error: statsError } = useQuery({
+    queryKey: ['userStats', userId],
+    queryFn: async () => {
+      if (!userId) {
+        throw new Error('User ID not available');
+      }
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        console.log('[Profile] Fetching user stats for userId:', userId);
+      }
+      const result = await getUserStats(userId);
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        console.log('[Profile] User stats response:', result);
+      }
+      return result;
+    },
+    enabled: !!userId,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+
+  // Fetch user rank
+  const { data: rankData, isLoading: rankLoading } = useQuery({
+    queryKey: ['userRank', userId],
+    queryFn: () => getUserRank(userId!),
+    enabled: !!userId,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+
+  // Fetch user activity
+  const { data: activityData, isLoading: activityLoading } = useQuery({
+    queryKey: ['userActivity', userId],
+    queryFn: () => getUserActivity(userId!, 20),
+    enabled: !!userId,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+
+  // Fetch user progress
+  const { data: progressData, isLoading: progressLoading } = useQuery({
+    queryKey: ['userProgress', userId],
+    queryFn: () => getUserProgress(userId!),
+    enabled: !!userId,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+
+  // Fetch user achievements
+  const { data: achievementsData, isLoading: achievementsLoading } = useQuery({
+    queryKey: ['userAchievements', userId],
+    queryFn: () => getUserAchievements(userId!),
+    enabled: !!userId,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+
+  // Log errors in development
+  useEffect(() => {
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      if (userError) console.error('[Profile] Error fetching user:', userError);
+      if (statsError) console.error('[Profile] Error fetching stats:', statsError);
+    }
+  }, [userError, statsError]);
+
+  // Use user from store as primary source (should always exist if logged in)
+  // API data is just for refreshing/updating
+  const user = currentUser || userData?.data;
+  
+  // Only show loading if we don't have a user at all AND we're still loading
+  const isLoading = userLoading || statsLoading || rankLoading || activityLoading || progressLoading || achievementsLoading;
+  
+  // Extract data from API responses
+  const stats = userStats?.data;
+  const rank = rankData?.data?.rank || 0;
+  const activities = Array.isArray(activityData?.data) ? activityData.data : [];
+  const progress = Array.isArray(progressData?.data?.topics) ? progressData.data.topics : [];
+  const achievements = Array.isArray(achievementsData?.data) ? achievementsData.data : [];
+
+  // Generate contribution data from submissions (simplified)
   const contributionData = generateContributionData();
+
+  // Show loading state only if we have no user AND are still loading
+  if (isLoading && !user) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <Loading size="lg" label="Loading profile..." />
+      </div>
+    );
+  }
+
+  // Show error or no user state - only if we truly have no user
+  // This should rarely happen if auth is working correctly
+  if (!user) {
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      console.error('[Profile] No user found:', {
+        currentUser,
+        userData: userData?.data,
+        isAuthenticated,
+        userError,
+      });
+    }
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <EmptyState 
+          title="User not found" 
+          description="Unable to load profile data. Please ensure you are logged in." 
+        />
+      </div>
+    );
+  }
+
+  // At this point, user is guaranteed to be defined
+  const displayName = user.firstName && user.lastName 
+    ? `${user.firstName} ${user.lastName}` 
+    : user.username;
 
   return (
     <div className="min-h-screen bg-background text-foreground p-6">
@@ -137,38 +308,31 @@ export default function ProfilePage() {
             <div className="flex items-start justify-between mb-6">
               <div className="flex items-start gap-6">
                 <Avatar className="w-24 h-24 border-2 border-primary">
-                  <AvatarImage src={mockProfile.avatar} alt={mockProfile.name} />
+                  <AvatarImage src={user.profilePicture} alt={displayName} />
                   <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                    {mockProfile.name[0]}
+                    {displayName[0]?.toUpperCase() || user.username[0]?.toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
 
                 <div className="pt-2">
-                  <h1 className="text-3xl font-bold text-foreground mb-1">{mockProfile.name}</h1>
+                  <h1 className="text-3xl font-bold text-foreground mb-1">{displayName}</h1>
                   <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
-                    <span>@{mockProfile.username}</span>
-                    <span>•</span>
-                    <MapPin className="w-4 h-4" />
-                    <span>{mockProfile.location}</span>
+                    <span>@{user.username}</span>
                     <span>•</span>
                     <Calendar className="w-4 h-4" />
-                    <span>Joined {mockProfile.joinedDate}</span>
+                    <span>Joined {format(new Date(user.createdAt), 'MMM yyyy')}</span>
                   </div>
 
                   <div className="flex items-center gap-6 pt-2">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-foreground">{mockProfile.rating.toLocaleString()}</span>
+                      <span className="text-2xl font-bold text-foreground">{user.totalRating.toLocaleString()}</span>
                       <span className="text-xs text-muted-foreground">Global Rating</span>
                     </div>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-foreground">#{mockProfile.globalRank}</span>
+                      <span className="text-2xl font-bold text-foreground">#{rank || '--'}</span>
                       <span className="text-xs text-muted-foreground">Global Rank</span>
                     </div>
                   </div>
-
-                  <Badge className="bg-primary/10 text-primary border-0 mt-3">
-                    Next Rank: {mockProfile.nextRank}
-                  </Badge>
                 </div>
               </div>
 
@@ -191,14 +355,14 @@ export default function ProfilePage() {
           <Card className="bg-card border-border shadow-sm">
             <CardContent className="p-6 text-center">
               <p className="text-muted-foreground text-sm mb-2">Problems Solved</p>
-              <p className="text-3xl font-bold text-foreground">{mockProfile.problemsSolved}</p>
+              <p className="text-3xl font-bold text-foreground">{stats?.solvedProblems || 0}</p>
             </CardContent>
           </Card>
 
           <Card className="bg-card border-border shadow-sm">
             <CardContent className="p-6 text-center">
               <p className="text-muted-foreground text-sm mb-2">Contests</p>
-              <p className="text-3xl font-bold text-foreground">{mockProfile.contests}</p>
+              <p className="text-3xl font-bold text-foreground">{stats?.contestsParticipated || 0}</p>
             </CardContent>
           </Card>
 
@@ -207,15 +371,15 @@ export default function ProfilePage() {
               <p className="text-muted-foreground text-sm mb-2">Current Streak</p>
               <div className="flex items-baseline justify-center gap-1">
                 <Flame className="w-6 h-6 text-orange-500" />
-                <p className="text-3xl font-bold text-foreground">{mockProfile.streak}</p>
+                <p className="text-3xl font-bold text-foreground">{user.currentStreak || 0}</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-card border-border shadow-sm">
             <CardContent className="p-6 text-center">
-              <p className="text-muted-foreground text-sm mb-2">Percentile</p>
-              <p className="text-3xl font-bold text-green-500">Top {mockProfile.percentile}%</p>
+              <p className="text-muted-foreground text-sm mb-2">Longest Streak</p>
+              <p className="text-3xl font-bold text-foreground">{user.longestStreak || 0}</p>
             </CardContent>
           </Card>
         </div>
@@ -262,22 +426,28 @@ export default function ProfilePage() {
         <Card className="bg-card border-border shadow-sm">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Achievements</h2>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-              {achievements.map((achievement) => (
-                <div key={achievement.id} className="flex flex-col items-center gap-2">
-                  <div className={`w-12 h-12 rounded-full border-2 flex items-center justify-center text-xl ${
-                    achievement.earned 
-                      ? 'border-yellow-500/50 bg-yellow-500/10' 
-                      : 'border-border bg-muted'
-                  }`}>
-                    {achievement.icon}
+            {achievements.length > 0 ? (
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                {achievements.map((userAchievement) => (
+                  <div key={userAchievement.id} className="flex flex-col items-center gap-2">
+                    <div className="w-12 h-12 rounded-full border-2 flex items-center justify-center text-xl border-yellow-500/50 bg-yellow-500/10">
+                      {userAchievement.achievement.icon || '🏆'}
+                    </div>
+                    <p className="text-xs text-center text-foreground">
+                      {userAchievement.achievement.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(userAchievement.earnedAt), 'MMM yyyy')}
+                    </p>
                   </div>
-                  <p className={`text-xs text-center ${achievement.earned ? 'text-foreground' : 'text-muted-foreground'}`}>
-                    {achievement.name}
-                  </p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState 
+                title="No achievements yet"
+                description="Complete challenges and contests to earn achievements."
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -293,21 +463,41 @@ export default function ProfilePage() {
               </div>
               
               <div className="space-y-3">
-                {recentActivities.map((activity) => {
-                  const Icon = activity.icon;
-                  return (
-                    <div key={activity.id} className="flex gap-3 pb-3 border-b border-border last:border-0 last:pb-0">
-                      <div className={`w-8 h-8 rounded-lg ${activity.color} flex items-center justify-center flex-shrink-0`}>
-                        <Icon className="w-4 h-4" />
+                {activities.length > 0 ? (
+                  activities.map((activity: any) => {
+                    const Icon = activity.type === 'submission' && activity.metadata?.status === 'ACCEPTED'
+                      ? CheckCircle2
+                      : activity.type === 'submission'
+                      ? Code2
+                      : activity.type === 'achievement'
+                      ? Trophy
+                      : Code2;
+                    const color = activity.type === 'submission' && activity.metadata?.status === 'ACCEPTED'
+                      ? 'text-green-500 bg-green-500/10'
+                      : activity.type === 'submission'
+                      ? 'text-red-500 bg-red-500/10'
+                      : 'text-blue-500 bg-blue-500/10';
+                    
+                    return (
+                      <div key={activity.id || activity.date} className="flex gap-3 pb-3 border-b border-border last:border-0 last:pb-0">
+                        <div className={`w-8 h-8 rounded-lg ${color} flex items-center justify-center flex-shrink-0`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground">{activity.description}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatDistanceToNow(new Date(activity.date), { addSuffix: true })}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground">{activity.title}</p>
-                        <p className="text-xs text-muted-foreground">{activity.subtitle}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                ) : (
+                  <EmptyState 
+                    title="No recent activity"
+                    description="Start solving problems to see your activity here."
+                  />
+                )}
               </div>
             </CardContent>
           </Card>
@@ -317,39 +507,62 @@ export default function ProfilePage() {
             <Card className="bg-card border-border shadow-sm">
               <CardContent className="p-6">
                 <h2 className="text-lg font-semibold text-foreground mb-4">Topic Strength</h2>
-                <div className="space-y-4">
-                  {topicStrength.map((topic) => (
-                    <div key={topic.name}>
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm text-foreground">{topic.name}</p>
-                        <span className="text-xs text-muted-foreground">{topic.solved}/{topic.total}</span>
+                {progress.length > 0 ? (
+                  <div className="space-y-4">
+                    {progress.map((topic: { name: string; solved: number; total: number; percentage: number; difficulty?: any }) => (
+                      <div key={topic.name}>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm text-foreground">{topic.name}</p>
+                          <span className="text-xs text-muted-foreground">{topic.solved}/{topic.total}</span>
+                        </div>
+                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-green-600 to-blue-600"
+                            style={{ width: `${topic.percentage}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${topic.color}`}
-                          style={{ width: `${(topic.solved / topic.total) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState 
+                    title="No progress data"
+                    description="Start solving problems to see your topic progress."
+                  />
+                )}
               </CardContent>
             </Card>
 
             <Card className="bg-card border-border shadow-sm">
               <CardContent className="p-6">
                 <h2 className="text-lg font-semibold text-foreground mb-4">Languages</h2>
-                <div className="space-y-3">
-                  {languages.map((lang) => (
-                    <div key={lang.name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-blue-500" />
-                        <span className="text-sm text-foreground">{lang.name}</span>
-                      </div>
-                      <span className="text-sm font-medium text-foreground">{lang.solved} solved</span>
-                    </div>
-                  ))}
-                </div>
+                {stats?.recentSubmissions && stats.recentSubmissions.length > 0 ? (
+                  <div className="space-y-3">
+                    {Object.entries(
+                      stats.recentSubmissions.reduce((acc: Record<string, number>, sub) => {
+                        const lang = sub.language || 'Unknown';
+                        acc[lang] = (acc[lang] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>)
+                    )
+                      .sort(([, a]: [string, number], [, b]: [string, number]) => b - a)
+                      .slice(0, 5)
+                      .map(([language, count]: [string, number]) => (
+                        <div key={language} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-blue-500" />
+                            <span className="text-sm text-foreground">{language}</span>
+                          </div>
+                          <span className="text-sm font-medium text-foreground">{count} submissions</span>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <EmptyState 
+                    title="No language data"
+                    description="Start submitting solutions to see language statistics."
+                  />
+                )}
               </CardContent>
             </Card>
           </div>

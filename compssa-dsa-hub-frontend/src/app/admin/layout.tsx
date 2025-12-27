@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
 import AdminSidebar from '@/components/layout/AdminSidebar';
 import Header from '@/components/layout/Header';
+import { Loading } from '@/components/common/Loading';
 
 export default function AdminLayout({
   children,
@@ -13,28 +14,33 @@ export default function AdminLayout({
 }) {
   const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    // Dev mode bypass: if no auth system, skip check
-    const isDev = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
-    
-    if (!isDev) {
-      // In production, check authentication and role
-      if (!isAuthenticated) {
-        router.push('/login');
-        return;
-      }
-
-      if (user?.role !== 'ADMIN' && user?.role !== 'INSTRUCTOR') {
-        router.push('/dashboard');
-        return;
-      }
+    // Check authentication first
+    if (!isAuthenticated || !user) {
+      router.push('/login');
+      return;
     }
+
+    // Only ADMIN role users can access admin pages
+    // USER and INSTRUCTOR roles are not allowed (as per user requirement: only ADMIN)
+    if (user.role !== 'ADMIN') {
+      // Redirect non-admin users to dashboard
+      router.push('/dashboard');
+      return;
+    }
+
+    setIsChecking(false);
   }, [user, isAuthenticated, router]);
 
-  // Show loading or null during redirect
-  if (!user && process.env.NEXT_PUBLIC_DEV_MODE !== 'true') {
-    return null;
+  // Show loading during redirect or auth check
+  if (isChecking || !isAuthenticated || !user || user.role !== 'ADMIN') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loading size="lg" label="Loading..." />
+      </div>
+    );
   }
 
   return (

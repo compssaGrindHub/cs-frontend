@@ -1,6 +1,11 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const NGROK_BASE = process.env.NEXT_PUBLIC_NGROK_BASE;
+const FALLBACK_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+const API_URL = NGROK_BASE 
+  ? `${NGROK_BASE}/api` 
+  : FALLBACK_API_URL;
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -22,11 +27,29 @@ apiClient.interceptors.request.use(
 );
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (typeof response.data === 'string' && response.data.trim().startsWith('<!DOCTYPE')) {
+      const error = new Error('Received HTML response instead of JSON. This may be an ngrok warning page. Please visit the endpoint in your browser first.') as any;
+      error.config = response.config;
+      error.response = {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data,
+        headers: response.headers,
+      };
+      error.isAxiosError = true;
+      return Promise.reject(error);
+    }
+    return response;
+  },
   async (error) => {
+    if (!error?.config) {
+      return Promise.reject(error);
+    }
+    
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error?.response?.status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
@@ -39,10 +62,22 @@ apiClient.interceptors.response.use(
           refreshToken,
         });
 
-        const { accessToken } = response.data;
-        localStorage.setItem('accessToken', accessToken);
+        const apiResponse = response.data;
+        let accessToken: string | null = null;
+        if (apiResponse.success && apiResponse.data) {
+          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = apiResponse.data;
+          accessToken = newAccessToken;
+          localStorage.setItem('accessToken', newAccessToken);
+          if (newRefreshToken) {
+            localStorage.setItem('refreshToken', newRefreshToken);
+          }
+        } else {
+          throw new Error('Invalid refresh token response');
+        }
 
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        if (accessToken) {
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        }
         return apiClient(originalRequest);
       } catch (refreshError) {
         localStorage.removeItem('accessToken');

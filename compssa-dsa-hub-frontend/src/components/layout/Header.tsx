@@ -21,8 +21,9 @@ export default function Header() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    // logout() from store handles API call and clearing state
+    await logout();
     router.push('/login');
   };
 
