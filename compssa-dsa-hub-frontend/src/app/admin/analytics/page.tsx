@@ -14,7 +14,7 @@ import {
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Download, TrendingUp, Users, Code2, Trophy, Activity, Calendar } from 'lucide-react';
 import { format, subDays } from 'date-fns';
-import { getSystemOverview, getUserGrowth, getEngagement, getSubmissionsStats, getAttendanceAnalytics } from '@/lib/api';
+import { getSystemOverview, getUserGrowth, getEngagement, getSubmissionsStats, getAttendanceAnalytics, getUsageTimeStats } from '@/lib/api';
 import { Loading } from '@/components/common/Loading';
 
 
@@ -55,13 +55,23 @@ export default function AdminAnalyticsPage() {
     queryFn: () => getAttendanceAnalytics(getDateRange()),
   });
 
-  const isLoading = overviewLoading || growthLoading || engagementLoading || submissionsLoading || attendanceLoading;
+  const { data: usageTimeStats, isLoading: usageTimeLoading } = useQuery({
+    queryKey: ['admin', 'usageTime', timeRange],
+    queryFn: () => getUsageTimeStats(getDateRange()),
+  });
+
+  const isLoading = overviewLoading || growthLoading || engagementLoading || submissionsLoading || attendanceLoading || usageTimeLoading;
+
+  const totalHoursSpent = usageTimeStats?.overall ? Math.floor(usageTimeStats.overall / 60) : 0;
+  const totalMinutesRemainder = usageTimeStats?.overall ? usageTimeStats.overall % 60 : 0;
+  const avgHoursSpent = usageTimeStats?.average ? Math.floor(usageTimeStats.average / 60) : 0;
+  const avgMinutesRemainder = usageTimeStats?.average ? Math.floor(usageTimeStats.average % 60) : 0;
 
   const stats = [
     { label: 'Total Users', value: overview?.users?.toString() || '0', change: '+12%', icon: Users, color: 'text-blue-500' },
     { label: 'Total Submissions', value: overview?.submissions?.toLocaleString() || '0', change: '+18%', icon: Code2, color: 'text-green-500' },
     { label: 'Active Sessions', value: overview?.sessions?.toString() || '0', change: '+8%', icon: Activity, color: 'text-purple-500' },
-    { label: 'Contests Held', value: overview?.contests?.toString() || '0', change: '+4', icon: Trophy, color: 'text-yellow-500' },
+    { label: 'Total Time Spent', value: `${totalHoursSpent}h ${totalMinutesRemainder}m`, change: `${avgHoursSpent}h ${avgMinutesRemainder}m avg`, icon: Calendar, color: 'text-orange-500' },
   ];
 
   const userGrowthData = userGrowth?.points.map((p) => ({

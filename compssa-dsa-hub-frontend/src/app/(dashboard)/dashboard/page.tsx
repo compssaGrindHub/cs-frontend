@@ -102,8 +102,10 @@ export default function DashboardPage() {
   const stats = userStats?.data;
   const userRank = rankData?.data?.rank || 0;
   const daily = dailyQuestion?.data;
-  const upcomingContests = contestsData?.data || [];
-  const recentSubmissions = submissionsData?.data?.data || [];
+  // getUpcomingContests already returns the array (extracts response.data.data)
+  const upcomingContests = contestsData || [];
+  // getUserSubmissions returns { data: [], meta: {} } directly (not wrapped in ApiResponse)
+  const recentSubmissions = submissionsData?.data || [];
   const progress = progressData?.data?.topics || [];
 
   // Calculate derived stats
@@ -112,48 +114,51 @@ export default function DashboardPage() {
   const contestsParticipated = stats?.contestsParticipated || 0;
   const currentStreak = user?.currentStreak || 0;
   const totalRating = user?.totalRating || 0;
+  const totalMinutesSpent = stats?.totalMinutesSpent || 0;
+  const hoursSpent = Math.floor(totalMinutesSpent / 60);
+  const minutesSpent = totalMinutesSpent % 60;
 
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Top Stats Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Global Rank Card */}
-          <Card className="bg-card border-border">
+          {/* Global Rank & Rating Combined Card */}
+          <Card className="bg-card border-border md:col-span-2">
             <CardContent className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Global Rank</p>
-                  <div className="flex items-baseline gap-2">
-                    <h2 className="text-3xl font-bold text-white">#{userRank || '--'}</h2>
-                    <span className="text-sm text-gray-400">users</span>
+              <div className="flex items-start justify-between gap-6">
+                <div className="flex-1 space-y-4">
+                  <div className="grid grid-cols-2 gap-6">
+                    {/* Global Rank */}
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Global Rank</p>
+                      <div className="flex items-baseline gap-2">
+                        <h2 className="text-3xl font-bold text-foreground">#{userRank || '--'}</h2>
+                        <span className="text-sm text-muted-foreground">users</span>
+                      </div>
+                    </div>
+                    {/* Rating */}
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Rating</p>
+                      <div className="flex items-baseline gap-2">
+                        <h2 className="text-3xl font-bold text-foreground">{totalRating.toLocaleString()}</h2>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  {daily && (
-                    <Link href={`/problems/${daily.slug}`} className="flex-1">
-                      <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                        Start Daily Challenge
+                  <div className="flex gap-2">
+                    {daily && (
+                      <Link href={`/problems/${daily.slug}`} className="flex-1">
+                        <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                          Start Daily Challenge
+                        </Button>
+                      </Link>
+                    )}
+                    <Link href="/profile" className="flex-1">
+                      <Button variant="outline" className="w-full">
+                        View Profile
                       </Button>
                     </Link>
-                  )}
-                  <Link href="/profile" className="flex-1">
-                    <Button variant="outline" className="w-full border-white/10 text-white hover:bg-white/5">
-                      View Profile
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Rating Card */}
-          <Card className="bg-card border-border">
-            <CardContent className="p-6">
-              <div>
-                <p className="text-sm text-gray-400 mb-1">Rating</p>
-                <div className="flex items-baseline gap-2">
-                  <h2 className="text-3xl font-bold text-white">{totalRating.toLocaleString()}</h2>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -223,8 +228,8 @@ export default function DashboardPage() {
               </div>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
-                  <h3 className="text-2xl font-bold text-white">{solvedProblems}</h3>
-                  <span className="text-sm text-gray-400">/{totalProblems}</span>
+                  <h3 className="text-2xl font-bold text-foreground">{solvedProblems}</h3>
+                  <span className="text-sm text-muted-foreground">/{totalProblems}</span>
                 </div>
                 <Progress value={totalProblems > 0 ? (solvedProblems / totalProblems) * 100 : 0} className="h-2" />
               </div>
@@ -239,7 +244,7 @@ export default function DashboardPage() {
                 <BarChart3 className="w-5 h-5 text-blue-500" />
               </div>
               <div className="space-y-2">
-                <h3 className="text-2xl font-bold text-white">{contestsParticipated}</h3>
+                <h3 className="text-2xl font-bold text-foreground">{contestsParticipated}</h3>
                 <p className="text-sm text-green-500">Participated</p>
               </div>
             </CardContent>
@@ -253,22 +258,24 @@ export default function DashboardPage() {
                 <Flame className="w-5 h-5 text-orange-500" />
               </div>
               <div className="space-y-2">
-                <h3 className="text-2xl font-bold text-white">{currentStreak} days</h3>
+                <h3 className="text-2xl font-bold text-foreground">{currentStreak} days</h3>
                 <Progress value={Math.min((currentStreak / 30) * 100, 100)} className="h-2 bg-orange-900/20" />
               </div>
             </CardContent>
           </Card>
 
-          {/* Rating */}
+          {/* Time Spent */}
           <Card className="bg-card border-border">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-3">
-                <p className="text-sm text-gray-400">Rating</p>
-                <Trophy className="w-5 h-5 text-purple-500" />
+                <p className="text-sm text-gray-400">Time Spent</p>
+                <Clock className="w-5 h-5 text-blue-500" />
               </div>
               <div className="space-y-2">
-                <h3 className="text-2xl font-bold text-white">{totalRating}</h3>
-                <p className="text-xs text-gray-400">Total Rating</p>
+                <h3 className="text-2xl font-bold text-foreground">
+                  {hoursSpent > 0 ? `${hoursSpent}h ${minutesSpent}m` : `${minutesSpent}m`}
+                </h3>
+                <p className="text-xs text-muted-foreground">Total Time</p>
               </div>
             </CardContent>
           </Card>
@@ -280,7 +287,7 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Clock className="w-5 h-5 text-blue-500" />
-                <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
+                <h2 className="text-lg font-semibold text-foreground">Recent Activity</h2>
               </div>
               <div className="space-y-4">
                 {recentSubmissions.length > 0 ? (
@@ -298,13 +305,13 @@ export default function DashboardPage() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white">
+                        <p className="text-sm font-medium text-foreground">
                           {submission.status === 'ACCEPTED' ? 'Solved' : 'Attempted'} "{submission.problem?.title || 'Problem'}"
                         </p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-muted-foreground">
                           {submission.problem?.difficulty} • {submission.language}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-muted-foreground/70 mt-1">
                           {formatDistanceToNow(new Date(submission.submissionTime), { addSuffix: true })}
                         </p>
                       </div>
@@ -326,7 +333,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Trophy className="w-5 h-5 text-blue-500" />
-                  <h2 className="text-lg font-semibold text-white">Upcoming Contests</h2>
+                  <h2 className="text-lg font-semibold text-foreground">Upcoming Contests</h2>
                 </div>
                 <Link href="/contests">
                   <Button variant="link" className="text-blue-500 p-0 h-auto">
@@ -344,21 +351,21 @@ export default function DashboardPage() {
                             <div className={`w-2 h-2 rounded-full ${
                               contest.status === 'LIVE' ? 'bg-green-500' : 'bg-blue-500'
                             }`} />
-                            <p className="text-sm font-medium text-white">{contest.name}</p>
+                            <p className="text-sm font-medium text-foreground">{contest.name}</p>
                           </div>
-                          <p className="text-xs text-gray-400 ml-4">{contest.platform}</p>
+                          <p className="text-xs text-muted-foreground ml-4">{contest.platform}</p>
                         </div>
                         <Link href={`/contests/${contest.id}`}>
-                          <Button size="sm" variant="outline" className="border-white/10 text-white hover:bg-white/5 text-xs">
+                          <Button size="sm" variant="outline" className="text-xs">
                             {contest.status === 'LIVE' ? 'Join' : 'Register'}
                           </Button>
                         </Link>
                       </div>
                       <div className="ml-4 space-y-1">
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-muted-foreground">
                           {formatDistanceToNow(new Date(contest.startTime), { addSuffix: true })}
                         </p>
-                        <p className="text-xs text-gray-500">⏰ {new Date(contest.startTime).toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground/70">⏰ {new Date(contest.startTime).toLocaleString()}</p>
                       </div>
                     </div>
                   ))
@@ -378,7 +385,7 @@ export default function DashboardPage() {
           <Card className="bg-card border-border">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-white">Progress by Topic</h2>
+                <h2 className="text-lg font-semibold text-foreground">Progress by Topic</h2>
                 <Link href="/profile">
                   <Button variant="link" className="text-blue-500 p-0 h-auto">
                     View All
@@ -389,8 +396,8 @@ export default function DashboardPage() {
                 {progress.slice(0, 5).map((topic: { name: string; solved: number; total: number; percentage: number }) => (
                   <div key={topic.name}>
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm text-white">{topic.name}</p>
-                      <span className="text-sm text-gray-400">{topic.solved}/{topic.total}</span>
+                      <p className="text-sm text-foreground">{topic.name}</p>
+                      <span className="text-sm text-muted-foreground">{topic.solved}/{topic.total}</span>
                     </div>
                     <Progress value={topic.percentage} className="h-2" />
                   </div>

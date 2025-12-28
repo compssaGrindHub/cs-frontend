@@ -108,13 +108,14 @@ export const getUserSubmissions = async (
   userId: string,
   params?: GetUserSubmissionsParams
 ): Promise<PaginatedSubmissionsResponse> => {
-  const response = await apiClient.get<ApiResponse<PaginatedSubmissionsResponse>>(`/submissions/user/${userId}`, {
+  const response = await apiClient.get(`/submissions/user/${userId}`, {
     params,
   });
-  // Backend returns { success: true, data: [], meta: {} } directly
+  // Backend returns { success: true, data: [], meta: {} } directly (not wrapped in ApiResponse)
+  // response.data is { success: true, data: [], meta: {} }
   return {
-    data: response.data.data || [],
-    meta: response.data.meta || {
+    data: (response.data as any).data || [],
+    meta: (response.data as any).meta || {
       total: 0,
       page: 1,
       limit: 20,

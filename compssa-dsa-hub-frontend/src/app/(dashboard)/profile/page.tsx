@@ -20,7 +20,8 @@ import {
   Zap,
   Users,
   MessageSquare,
-  Eye
+  Eye,
+  Clock
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Loading } from '@/components/common/Loading';
@@ -262,6 +263,11 @@ export default function ProfilePage() {
   const activities = Array.isArray(activityData) ? activityData : [];
   const progress = progressData?.topics || [];
   const achievements = Array.isArray(achievementsData) ? achievementsData : [];
+  
+  // Calculate time spent
+  const totalMinutesSpent = stats?.totalMinutesSpent || 0;
+  const hoursSpent = Math.floor(totalMinutesSpent / 60);
+  const minutesSpent = totalMinutesSpent % 60;
 
   const contributionData = useMemo(() => {
     if (!stats?.recentSubmissions || stats.recentSubmissions.length === 0) {
@@ -411,8 +417,13 @@ export default function ProfilePage() {
 
           <Card className="bg-card border-border shadow-sm">
             <CardContent className="p-6 text-center">
-              <p className="text-muted-foreground text-sm mb-2">Longest Streak</p>
-              <p className="text-3xl font-bold text-foreground">{user.longestStreak || 0}</p>
+              <p className="text-muted-foreground text-sm mb-2">Time Spent</p>
+              <div className="flex items-baseline justify-center gap-1">
+                <Clock className="w-5 h-5 text-blue-500" />
+                <p className="text-3xl font-bold text-foreground">
+                  {hoursSpent > 0 ? `${hoursSpent}h ${minutesSpent}m` : `${minutesSpent}m`}
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>

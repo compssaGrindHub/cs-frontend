@@ -24,6 +24,7 @@ export interface UserStats {
   solvedProblems: number;
   contestsParticipated: number;
   averageRank: number | null;
+  totalMinutesSpent: number;
   topicBreakdown: Array<{
     topic: string;
     count: number;
