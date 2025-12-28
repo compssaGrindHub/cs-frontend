@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,39 +32,21 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Search, Pencil, Trash2, Award, TrendingUp, Users } from 'lucide-react';
-
-type AchievementType =
-  | 'STREAK_7'
-  | 'STREAK_30'
-  | 'PROBLEMS_10'
-  | 'PROBLEMS_50'
-  | 'PROBLEMS_100'
-  | 'CONTEST_PARTICIPATION'
-  | 'TOP_10_FINISH'
-  | 'PERFECT_ATTENDANCE'
-  | 'CUSTOM';
-
-interface Achievement {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  type: AchievementType;
-  requirement: Record<string, any>;
-  unlockedBy: number;
-  createdAt: string;
-}
+import { getAchievements, createAchievement } from '@/lib/api';
+import { Achievement, AchievementType } from '@/lib/api/achievements';
+import { Loading } from '@/components/common/Loading';
 
 const achievementTypes = [
+  { value: 'CONTEST_FIRST', label: 'Contest First Place' },
+  { value: 'CONTEST_SECOND', label: 'Contest Second Place' },
+  { value: 'CONTEST_THIRD', label: 'Contest Third Place' },
   { value: 'STREAK_7', label: '7-Day Streak' },
   { value: 'STREAK_30', label: '30-Day Streak' },
-  { value: 'PROBLEMS_10', label: '10 Problems Solved' },
-  { value: 'PROBLEMS_50', label: '50 Problems Solved' },
-  { value: 'PROBLEMS_100', label: '100 Problems Solved' },
-  { value: 'CONTEST_PARTICIPATION', label: 'Contest Participation' },
-  { value: 'TOP_10_FINISH', label: 'Top 10 Finish' },
-  { value: 'PERFECT_ATTENDANCE', label: 'Perfect Attendance' },
-  { value: 'CUSTOM', label: 'Custom Achievement' },
+  { value: 'STREAK_100', label: '100-Day Streak' },
+  { value: 'TOPIC_MASTER', label: 'Topic Master' },
+  { value: 'EARLY_BIRD', label: 'Early Bird' },
+  { value: 'NIGHT_OWL', label: 'Night Owl' },
+  { value: 'PERFECT_WEEK', label: 'Perfect Week' },
 ];
 
 const iconOptions = ['🔥', '⭐', '🏆', '💎', '🎯', '🚀', '💪', '🎖️', '👑', '⚡', '🌟', '🥇', '🥈', '🥉', '🎓', '📚'];
@@ -101,24 +84,31 @@ const mockAchievements: Achievement[] = [
   },
 ];
 
-const emptyAchievement: Omit<Achievement, 'id' | 'unlockedBy' | 'createdAt'> = {
+const emptyAchievement = {
   name: '',
   description: '',
   icon: '🏆',
-  type: 'CUSTOM',
+  type: 'STREAK_7' as AchievementType,
   requirement: {},
 };
 
 export default function AdminAchievementsPage() {
-  const [achievements, setAchievements] = useState<Achievement[]>(mockAchievements);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<AchievementType | 'ALL'>('ALL');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
-  const [formData, setFormData] = useState<Omit<Achievement, 'id' | 'unlockedBy' | 'createdAt'>>(emptyAchievement);
+  const [formData, setFormData] = useState(emptyAchievement);
   const [requirementInput, setRequirementInput] = useState('');
+
+  const { data: achievementsData, isLoading } = useQuery({
+    queryKey: ['achievements'],
+    queryFn: () => getAchievements(),
+  });
+
+  const achievements = achievementsData?.data || [];
 
   const filteredAchievements = useMemo(() => {
     return achievements.filter((achievement) => {
@@ -130,81 +120,49 @@ export default function AdminAchievementsPage() {
     });
   }, [achievements, searchTerm, typeFilter]);
 
+  const createMutation = useMutation({
+    mutationFn: createAchievement,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['achievements'] });
+      queryClient.refetchQueries({ queryKey: ['achievements'] });
+      setIsCreateDialogOpen(false);
+      setFormData(emptyAchievement);
+      setRequirementInput('');
+    },
+  });
+
   const stats = [
     { label: 'Total Achievements', value: achievements.length, color: 'text-blue-500', icon: Award },
-    {
-      label: 'Total Unlocks',
-      value: achievements.reduce((sum, a) => sum + a.unlockedBy, 0),
-      color: 'text-green-500',
-      icon: TrendingUp,
-    },
-    {
-      label: 'Avg per User',
-      value: achievements.length > 0 ? (achievements.reduce((sum, a) => sum + a.unlockedBy, 0) / 248).toFixed(1) : '0',
-      color: 'text-purple-500',
-      icon: Users,
-    },
+    { label: 'Achievement Types', value: new Set(achievements.map(a => a.type)).size, color: 'text-green-500', icon: TrendingUp },
   ];
 
   const handleCreate = () => {
-    const newAchievement: Achievement = {
-      ...formData,
-      id: `ach-${Date.now()}`,
-      requirement: requirementInput ? JSON.parse(requirementInput) : {},
-      unlockedBy: 0,
-      createdAt: new Date().toISOString(),
-    };
-    setAchievements([...achievements, newAchievement]);
-    setIsCreateDialogOpen(false);
-    setFormData(emptyAchievement);
-    setRequirementInput('');
-  };
-
-  const handleEdit = () => {
-    if (!selectedAchievement) return;
-    setAchievements(
-      achievements.map((a) =>
-        a.id === selectedAchievement.id
-          ? {
-              ...formData,
-              id: a.id,
-              requirement: requirementInput ? JSON.parse(requirementInput) : {},
-              unlockedBy: a.unlockedBy,
-              createdAt: a.createdAt,
-            }
-          : a
-      )
-    );
-    setIsEditDialogOpen(false);
-    setSelectedAchievement(null);
-    setFormData(emptyAchievement);
-    setRequirementInput('');
-  };
-
-  const handleDelete = () => {
-    if (!selectedAchievement) return;
-    setAchievements(achievements.filter((a) => a.id !== selectedAchievement.id));
-    setIsDeleteDialogOpen(false);
-    setSelectedAchievement(null);
-  };
-
-  const openEditDialog = (achievement: Achievement) => {
-    setSelectedAchievement(achievement);
-    setFormData({
-      name: achievement.name,
-      description: achievement.description,
-      icon: achievement.icon,
-      type: achievement.type,
-      requirement: achievement.requirement,
-    });
-    setRequirementInput(JSON.stringify(achievement.requirement, null, 2));
-    setIsEditDialogOpen(true);
+    try {
+      const requirement = requirementInput.trim() ? JSON.parse(requirementInput) : {};
+      createMutation.mutate({
+        name: formData.name,
+        description: formData.description,
+        icon: formData.icon,
+        type: formData.type,
+        requirement,
+      });
+    } catch (error) {
+      alert('Invalid JSON format for requirement');
+    }
   };
 
   const openDeleteDialog = (achievement: Achievement) => {
     setSelectedAchievement(achievement);
     setIsDeleteDialogOpen(true);
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Loading size="lg" label="Loading achievements..." />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -281,14 +239,13 @@ export default function AdminAchievementsPage() {
                   <TableHead className="text-muted-foreground">Achievement</TableHead>
                   <TableHead className="text-muted-foreground">Type</TableHead>
                   <TableHead className="text-muted-foreground">Requirement</TableHead>
-                  <TableHead className="text-muted-foreground">Unlocked By</TableHead>
                   <TableHead className="text-right text-muted-foreground">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredAchievements.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                       No achievements found
                     </TableCell>
                   </TableRow>
@@ -315,24 +272,10 @@ export default function AdminAchievementsPage() {
                         </code>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4 text-muted-foreground" />
-                          <span className="font-medium text-foreground">{achievement.unlockedBy}</span>
-                          <span className="text-sm text-muted-foreground">
-                            ({((achievement.unlockedBy / 248) * 100).toFixed(1)}%)
-                          </span>
-                        </div>
+                        <span className="text-muted-foreground">-</span>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditDialog(achievement)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -445,99 +388,9 @@ export default function AdminAchievementsPage() {
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={!formData.name || !formData.description}>
-              Create Achievement
+            <Button onClick={handleCreate} disabled={!formData.name || !formData.description || createMutation.isPending}>
+              {createMutation.isPending ? 'Creating...' : 'Create Achievement'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Edit Achievement</DialogTitle>
-            <DialogDescription className="text-muted-foreground">Update achievement details</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-name" className="text-foreground">
-                Achievement Name
-              </Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="bg-background border-border"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-description" className="text-foreground">
-                Description
-              </Label>
-              <Textarea
-                id="edit-description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="bg-background border-border min-h-[80px]"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-icon" className="text-foreground">
-                  Icon
-                </Label>
-                <Select value={formData.icon} onValueChange={(v) => setFormData({ ...formData, icon: v })}>
-                  <SelectTrigger className="bg-background border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {iconOptions.map((icon) => (
-                      <SelectItem key={icon} value={icon}>
-                        <span className="text-2xl">{icon}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-type" className="text-foreground">
-                  Type
-                </Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(v) => setFormData({ ...formData, type: v as AchievementType })}
-                >
-                  <SelectTrigger className="bg-background border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {achievementTypes.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-requirement" className="text-foreground">
-                Requirement (JSON)
-              </Label>
-              <Textarea
-                id="edit-requirement"
-                value={requirementInput}
-                onChange={(e) => setRequirementInput(e.target.value)}
-                className="bg-background border-border min-h-[100px] font-mono text-sm"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleEdit}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -556,7 +409,7 @@ export default function AdminAchievementsPage() {
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
+            <Button variant="destructive" onClick={() => {}}>
               Delete
             </Button>
           </DialogFooter>

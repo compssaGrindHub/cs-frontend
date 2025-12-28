@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -12,86 +12,100 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Calendar, Download, TrendingUp, Users, Code2, Trophy, Activity } from 'lucide-react';
+import { Download, TrendingUp, Users, Code2, Trophy, Activity, Calendar } from 'lucide-react';
 import { format, subDays } from 'date-fns';
+import { getSystemOverview, getUserGrowth, getEngagement, getSubmissionsStats, getAttendanceAnalytics } from '@/lib/api';
+import { Loading } from '@/components/common/Loading';
 
-// Mock data generators
-const generateUserGrowthData = () => {
-  const data = [];
-  for (let i = 30; i >= 0; i--) {
-    const date = subDays(new Date(), i);
-    data.push({
-      date: format(date, 'MMM dd'),
-      users: Math.floor(200 + Math.random() * 50 + i * 1.5),
-      active: Math.floor(120 + Math.random() * 30 + i * 0.8),
-    });
-  }
-  return data;
-};
-
-const generateSubmissionData = () => {
-  const data = [];
-  const platforms = ['LeetCode', 'Codeforces', 'AtCoder', 'CodeChef'];
-  for (let i = 7; i >= 0; i--) {
-    const date = subDays(new Date(), i);
-    data.push({
-      date: format(date, 'MMM dd'),
-      ...platforms.reduce((acc, platform) => ({
-        ...acc,
-        [platform]: Math.floor(20 + Math.random() * 40),
-      }), {}),
-    });
-  }
-  return data;
-};
-
-const generateTopicDistribution = () => [
-  { name: 'Arrays & Hashing', value: 342, color: '#3b82f6' },
-  { name: 'Two Pointers', value: 198, color: '#10b981' },
-  { name: 'Dynamic Programming', value: 276, color: '#f59e0b' },
-  { name: 'Trees & Graphs', value: 234, color: '#8b5cf6' },
-  { name: 'Binary Search', value: 156, color: '#ef4444' },
-  { name: 'Other', value: 124, color: '#6b7280' },
-];
-
-const generateDifficultyDistribution = () => [
-  { name: 'Easy', value: 450, color: '#10b981' },
-  { name: 'Medium', value: 620, color: '#f59e0b' },
-  { name: 'Hard', value: 260, color: '#ef4444' },
-];
-
-const generateEngagementData = () => {
-  const data = [];
-  for (let i = 12; i >= 0; i--) {
-    const date = subDays(new Date(), i * 2);
-    data.push({
-      date: format(date, 'MMM dd'),
-      sessions: Math.floor(150 + Math.random() * 50),
-      avgDuration: Math.floor(25 + Math.random() * 15),
-    });
-  }
-  return data;
-};
 
 export default function AdminAnalyticsPage() {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
-  const [userGrowthData] = useState(generateUserGrowthData());
-  const [submissionData] = useState(generateSubmissionData());
-  const [topicData] = useState(generateTopicDistribution());
-  const [difficultyData] = useState(generateDifficultyDistribution());
-  const [engagementData] = useState(generateEngagementData());
+
+  const getDateRange = () => {
+    const now = new Date();
+    const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90;
+    return {
+      from: subDays(now, days).toISOString(),
+      to: now.toISOString(),
+    };
+  };
+
+  const { data: overview, isLoading: overviewLoading } = useQuery({
+    queryKey: ['admin', 'overview'],
+    queryFn: getSystemOverview,
+  });
+
+  const { data: userGrowth, isLoading: growthLoading } = useQuery({
+    queryKey: ['admin', 'userGrowth', timeRange],
+    queryFn: () => getUserGrowth({ ...getDateRange(), bucket: timeRange === '7d' ? 'day' : 'month' }),
+  });
+
+  const { data: engagement, isLoading: engagementLoading } = useQuery({
+    queryKey: ['admin', 'engagement', timeRange],
+    queryFn: () => getEngagement(getDateRange()),
+  });
+
+  const { data: submissionsStats, isLoading: submissionsLoading } = useQuery({
+    queryKey: ['admin', 'submissions', timeRange],
+    queryFn: () => getSubmissionsStats(getDateRange()),
+  });
+
+  const { data: attendanceStats, isLoading: attendanceLoading } = useQuery({
+    queryKey: ['admin', 'attendance', timeRange],
+    queryFn: () => getAttendanceAnalytics(getDateRange()),
+  });
+
+  const isLoading = overviewLoading || growthLoading || engagementLoading || submissionsLoading || attendanceLoading;
 
   const stats = [
-    { label: 'Total Users', value: '248', change: '+12%', icon: Users, color: 'text-blue-500' },
-    { label: 'Total Submissions', value: '1,330', change: '+18%', icon: Code2, color: 'text-green-500' },
-    { label: 'Active Sessions', value: '156', change: '+8%', icon: Activity, color: 'text-purple-500' },
-    { label: 'Contests Held', value: '32', change: '+4', icon: Trophy, color: 'text-yellow-500' },
+    { label: 'Total Users', value: overview?.users?.toString() || '0', change: '+12%', icon: Users, color: 'text-blue-500' },
+    { label: 'Total Submissions', value: overview?.submissions?.toLocaleString() || '0', change: '+18%', icon: Code2, color: 'text-green-500' },
+    { label: 'Active Sessions', value: overview?.sessions?.toString() || '0', change: '+8%', icon: Activity, color: 'text-purple-500' },
+    { label: 'Contests Held', value: overview?.contests?.toString() || '0', change: '+4', icon: Trophy, color: 'text-yellow-500' },
   ];
+
+  const userGrowthData = userGrowth?.points.map((p) => ({
+    date: p.key,
+    users: p.count,
+    active: 0,
+  })) || [];
+
+  const submissionData = submissionsStats?.daily.map((d) => ({
+    date: d.key,
+    LeetCode: 0,
+    Codeforces: 0,
+    AtCoder: 0,
+    CodeChef: 0,
+  })) || [];
+
+  const topicData = [
+    { name: 'Arrays & Hashing', value: 342, color: '#3b82f6' },
+    { name: 'Two Pointers', value: 198, color: '#10b981' },
+    { name: 'Dynamic Programming', value: 276, color: '#f59e0b' },
+    { name: 'Trees & Graphs', value: 234, color: '#8b5cf6' },
+    { name: 'Binary Search', value: 156, color: '#ef4444' },
+    { name: 'Other', value: 124, color: '#6b7280' },
+  ];
+
+  const difficultyData = [
+    { name: 'Easy', value: 450, color: '#10b981' },
+    { name: 'Medium', value: 620, color: '#f59e0b' },
+    { name: 'Hard', value: 260, color: '#ef4444' },
+  ];
+
+  const engagementData = userGrowthData;
 
   const handleExport = (type: 'csv' | 'pdf') => {
     console.log(`Exporting analytics as ${type}`);
-    // Mock export - would generate and download file
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Loading size="lg" label="Loading analytics..." />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -197,10 +211,7 @@ export default function AdminAnalyticsPage() {
                 }}
               />
               <Legend />
-              <Bar dataKey="LeetCode" fill="#f59e0b" />
-              <Bar dataKey="Codeforces" fill="#3b82f6" />
-              <Bar dataKey="AtCoder" fill="#6b7280" />
-              <Bar dataKey="CodeChef" fill="#8b5cf6" />
+              <Bar dataKey="count" fill="#3b82f6" name="Submissions" />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

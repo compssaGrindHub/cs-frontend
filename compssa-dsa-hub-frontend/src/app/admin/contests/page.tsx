@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,154 +32,157 @@ import {
 } from '@/components/ui/table';
 import { Plus, Search, Pencil, Trash2, Trophy, Clock, Users, RefreshCw, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
+import { getContests, createContest, updateContest, deleteContest, syncContestStandings } from '@/lib/api';
+import { Contest, Platform } from '@/lib/types/contest';
+import { Loading } from '@/components/common/Loading';
 
-type Platform = 'CODEFORCES' | 'LEETCODE' | 'ATCODER' | 'CODECHEF' | 'OTHER';
-
-interface Contest {
-  id: string;
-  name: string;
-  platform: Platform;
-  externalId: string;
-  startTime: string;
-  duration: number; // minutes
-  isRated: boolean;
-  participants: number;
-  status: 'UPCOMING' | 'ONGOING' | 'COMPLETED';
-}
-
-const platformColors: Record<Platform, string> = {
+const platformColors: Record<string, string> = {
   CODEFORCES: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
   LEETCODE: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
-  ATCODER: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
-  CODECHEF: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-  OTHER: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+  CUSTOM: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
 };
 
 const statusColors = {
   UPCOMING: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-  ONGOING: 'bg-green-500/10 text-green-500 border-green-500/20',
+  LIVE: 'bg-green-500/10 text-green-500 border-green-500/20',
   COMPLETED: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
 };
 
-const mockContests: Contest[] = [
-  {
-    id: '1',
-    name: 'Codeforces Round #918 (Div. 2)',
-    platform: 'CODEFORCES',
-    externalId: '1918',
-    startTime: '2026-01-28T14:35:00Z',
-    duration: 120,
-    isRated: true,
-    participants: 0,
-    status: 'UPCOMING',
-  },
-  {
-    id: '2',
-    name: 'Weekly Contest 378',
-    platform: 'LEETCODE',
-    externalId: 'weekly-378',
-    startTime: '2026-01-26T02:30:00Z',
-    duration: 90,
-    isRated: true,
-    participants: 0,
-    status: 'UPCOMING',
-  },
-  {
-    id: '3',
-    name: 'AtCoder Beginner Contest 337',
-    platform: 'ATCODER',
-    externalId: 'abc337',
-    startTime: '2025-12-20T12:00:00Z',
-    duration: 100,
-    isRated: true,
-    participants: 24,
-    status: 'COMPLETED',
-  },
-];
-
-const emptyContest: Omit<Contest, 'id' | 'participants' | 'status'> = {
+const emptyContest = {
   name: '',
-  platform: 'CODEFORCES',
+  platform: 'CODEFORCES' as Platform,
   externalId: '',
   startTime: '',
   duration: 120,
   isRated: true,
+  description: '',
 };
 
 export default function AdminContestsPage() {
-  const [contests, setContests] = useState<Contest[]>(mockContests);
+  const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [platformFilter, setPlatformFilter] = useState<Platform | 'ALL'>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'UPCOMING' | 'ONGOING' | 'COMPLETED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'UPCOMING' | 'LIVE' | 'COMPLETED'>('ALL');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
-  const [formData, setFormData] = useState<Omit<Contest, 'id' | 'participants' | 'status'>>(emptyContest);
+  const [formData, setFormData] = useState(emptyContest);
 
-  const getContestStatus = (startTime: string, duration: number): Contest['status'] => {
-    const now = new Date();
-    const start = new Date(startTime);
-    const end = new Date(start.getTime() + duration * 60000);
+  const { data: contestsData, isLoading } = useQuery({
+    queryKey: ['contests', page, platformFilter, statusFilter, searchTerm],
+    queryFn: () => getContests({
+      page,
+      limit: 50,
+      platform: platformFilter !== 'ALL' ? platformFilter : undefined,
+      status: statusFilter !== 'ALL' ? statusFilter : undefined,
+    }),
+  });
 
-    if (now < start) return 'UPCOMING';
-    if (now >= start && now <= end) return 'ONGOING';
-    return 'COMPLETED';
-  };
+  const contests = contestsData?.data || [];
+  const meta = contestsData?.meta;
 
-  const filteredContests = useMemo(() => {
-    return contests.filter((contest) => {
-      const matchesSearch = contest.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesPlatform = platformFilter === 'ALL' || contest.platform === platformFilter;
-      const matchesStatus = statusFilter === 'ALL' || contest.status === statusFilter;
-      return matchesSearch && matchesPlatform && matchesStatus;
-    });
-  }, [contests, searchTerm, platformFilter, statusFilter]);
+  const createMutation = useMutation({
+    mutationFn: createContest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contests'] });
+      queryClient.refetchQueries({ queryKey: ['contests'] });
+      setIsCreateDialogOpen(false);
+      setFormData(emptyContest);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => updateContest(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contests'] });
+      queryClient.refetchQueries({ queryKey: ['contests'] });
+      setIsEditDialogOpen(false);
+      setSelectedContest(null);
+      setFormData(emptyContest);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteContest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contests'] });
+      queryClient.refetchQueries({ queryKey: ['contests'] });
+      setIsDeleteDialogOpen(false);
+      setSelectedContest(null);
+    },
+  });
+
+  const syncStandingsMutation = useMutation({
+    mutationFn: syncContestStandings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contests'] });
+      queryClient.refetchQueries({ queryKey: ['contests'] });
+    },
+  });
 
   const stats = [
-    { label: 'Total Contests', value: contests.length, color: 'text-blue-500' },
+    { label: 'Total Contests', value: meta?.total || 0, color: 'text-blue-500' },
     { label: 'Upcoming', value: contests.filter((c) => c.status === 'UPCOMING').length, color: 'text-green-500' },
-    { label: 'Ongoing', value: contests.filter((c) => c.status === 'ONGOING').length, color: 'text-yellow-500' },
+    { label: 'Live', value: contests.filter((c) => c.status === 'LIVE').length, color: 'text-yellow-500' },
     { label: 'Completed', value: contests.filter((c) => c.status === 'COMPLETED').length, color: 'text-gray-500' },
   ];
 
   const handleCreate = () => {
-    const status = getContestStatus(formData.startTime, formData.duration);
-    const newContest: Contest = {
-      ...formData,
-      id: `contest-${Date.now()}`,
-      participants: 0,
-      status,
+    const requestData: any = {
+      name: formData.name,
+      platform: formData.platform,
+      startTime: new Date(formData.startTime).toISOString(),
+      duration: formData.duration,
+      isRated: formData.isRated !== undefined ? formData.isRated : true,
     };
-    setContests([...contests, newContest]);
-    setIsCreateDialogOpen(false);
-    setFormData(emptyContest);
+    
+    if (formData.externalId) {
+      requestData.externalId = formData.externalId;
+    }
+    
+    if (formData.description) {
+      requestData.description = formData.description;
+    }
+    
+    createMutation.mutate(requestData);
   };
 
   const handleEdit = () => {
     if (!selectedContest) return;
-    const status = getContestStatus(formData.startTime, formData.duration);
-    setContests(
-      contests.map((c) =>
-        c.id === selectedContest.id ? { ...formData, id: c.id, participants: c.participants, status } : c
-      )
-    );
-    setIsEditDialogOpen(false);
-    setSelectedContest(null);
-    setFormData(emptyContest);
+    const requestData: any = {
+      name: formData.name,
+      platform: formData.platform,
+      startTime: new Date(formData.startTime).toISOString(),
+      duration: formData.duration,
+    };
+    
+    if (formData.externalId) {
+      requestData.externalId = formData.externalId;
+    }
+    
+    if (formData.isRated !== undefined) {
+      requestData.isRated = formData.isRated;
+    }
+    
+    if (formData.description) {
+      requestData.description = formData.description;
+    }
+    
+    updateMutation.mutate({
+      id: selectedContest.id,
+      data: requestData,
+    });
   };
 
   const handleDelete = () => {
     if (!selectedContest) return;
-    setContests(contests.filter((c) => c.id !== selectedContest.id));
-    setIsDeleteDialogOpen(false);
-    setSelectedContest(null);
+    deleteMutation.mutate(selectedContest.id);
   };
 
   const handleSyncStandings = (contestId: string) => {
-    // Mock API call - would POST to /contests/:id/sync
-    console.log('Syncing standings for contest:', contestId);
-    // Show success toast
+    syncStandingsMutation.mutate(contestId);
   };
 
   const openEditDialog = (contest: Contest) => {
@@ -186,10 +190,11 @@ export default function AdminContestsPage() {
     setFormData({
       name: contest.name,
       platform: contest.platform,
-      externalId: contest.externalId,
+      externalId: contest.externalId || '',
       startTime: contest.startTime,
       duration: contest.duration,
       isRated: contest.isRated,
+      description: '',
     });
     setIsEditDialogOpen(true);
   };
@@ -198,6 +203,14 @@ export default function AdminContestsPage() {
     setSelectedContest(contest);
     setIsDeleteDialogOpen(true);
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Loading size="lg" label="Loading contests..." />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -249,9 +262,7 @@ export default function AdminContestsPage() {
                 <SelectItem value="ALL">All Platforms</SelectItem>
                 <SelectItem value="CODEFORCES">Codeforces</SelectItem>
                 <SelectItem value="LEETCODE">LeetCode</SelectItem>
-                <SelectItem value="ATCODER">AtCoder</SelectItem>
-                <SelectItem value="CODECHEF">CodeChef</SelectItem>
-                <SelectItem value="OTHER">Other</SelectItem>
+                <SelectItem value="CUSTOM">Custom</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
@@ -261,7 +272,7 @@ export default function AdminContestsPage() {
               <SelectContent>
                 <SelectItem value="ALL">All Status</SelectItem>
                 <SelectItem value="UPCOMING">Upcoming</SelectItem>
-                <SelectItem value="ONGOING">Ongoing</SelectItem>
+                <SelectItem value="LIVE">Live</SelectItem>
                 <SelectItem value="COMPLETED">Completed</SelectItem>
               </SelectContent>
             </Select>
@@ -282,14 +293,14 @@ export default function AdminContestsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredContests.length === 0 ? (
+                {contests.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No contests found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredContests.map((contest) => (
+                  contests.map((contest) => (
                     <TableRow key={contest.id} className="hover:bg-muted/50">
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -319,7 +330,7 @@ export default function AdminContestsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Badge className={statusColors[contest.status]}>{contest.status}</Badge>
+                          <Badge className={statusColors[contest.status as keyof typeof statusColors]}>{contest.status}</Badge>
                           {contest.isRated && (
                             <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
                               Rated
@@ -330,7 +341,7 @@ export default function AdminContestsPage() {
                       <TableCell>
                         <div className="flex items-center gap-1 text-sm text-foreground">
                           <Users className="w-3 h-3 text-muted-foreground" />
-                          {contest.participants}
+                          {contest.participantCount || 0}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
@@ -342,6 +353,7 @@ export default function AdminContestsPage() {
                               onClick={() => handleSyncStandings(contest.id)}
                               className="h-8 px-2 gap-1 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
                               title="Sync Standings"
+                              disabled={syncStandingsMutation.isPending}
                             >
                               <RefreshCw className="w-4 h-4" />
                             </Button>
@@ -425,9 +437,21 @@ export default function AdminContestsPage() {
                   value={formData.externalId}
                   onChange={(e) => setFormData({ ...formData, externalId: e.target.value })}
                   className="bg-background border-border"
-                  placeholder="e.g., 1918"
+                  placeholder="e.g., 1918 (optional)"
                 />
               </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description" className="text-foreground">
+                Description
+              </Label>
+              <Input
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="bg-background border-border"
+                placeholder="Contest description (optional)"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
@@ -473,8 +497,8 @@ export default function AdminContestsPage() {
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={!formData.name || !formData.externalId}>
-              Add Contest
+            <Button onClick={handleCreate} disabled={!formData.name || createMutation.isPending}>
+              {createMutation.isPending ? 'Creating...' : 'Add Contest'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -514,9 +538,7 @@ export default function AdminContestsPage() {
                   <SelectContent>
                     <SelectItem value="CODEFORCES">Codeforces</SelectItem>
                     <SelectItem value="LEETCODE">LeetCode</SelectItem>
-                    <SelectItem value="ATCODER">AtCoder</SelectItem>
-                    <SelectItem value="CODECHEF">CodeChef</SelectItem>
-                    <SelectItem value="OTHER">Other</SelectItem>
+                    <SelectItem value="CUSTOM">Custom</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -575,7 +597,9 @@ export default function AdminContestsPage() {
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleEdit}>Save Changes</Button>
+            <Button onClick={handleEdit} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -593,8 +617,8 @@ export default function AdminContestsPage() {
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -37,9 +37,9 @@ interface PaginatedUsersResponse {
  * Get all users with pagination and filters
  * GET /api/users
  */
-export const getUsers = async (params?: GetUsersParams): Promise<ApiResponse<PaginatedUsersResponse>> => {
+export const getUsers = async (params?: GetUsersParams): Promise<PaginatedUsersResponse> => {
   const response = await apiClient.get<ApiResponse<PaginatedUsersResponse>>('/users', { params });
-  return response.data;
+  return response.data as PaginatedUsersResponse;
 };
 
 /**
@@ -64,9 +64,8 @@ export const updateUser = async (id: string, userData: UpdateUserRequest): Promi
  * Delete user (admin only)
  * DELETE /api/users/:id
  */
-export const deleteUser = async (id: string): Promise<ApiResponse<void>> => {
-  const response = await apiClient.delete<ApiResponse<void>>(`/users/${id}`);
-  return response.data;
+export const deleteUser = async (id: string): Promise<void> => {
+  await apiClient.delete<ApiResponse<void>>(`/users/${id}`);
 };
 
 /**

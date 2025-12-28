@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,8 +24,12 @@ import {
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Search, UserCheck, UserX, Users, CalendarClock, Save, Download } from 'lucide-react';
-import { mockSessions, Session } from '@/lib/mock/sessions';
 import { format } from 'date-fns';
+import { getSessions } from '@/lib/api';
+import { Session } from '@/lib/api/sessions';
+import { getSessionAttendance, markBulkAttendance } from '@/lib/api/attendance';
+import { getUsers } from '@/lib/api';
+import { Loading } from '@/components/common/Loading';
 
 interface AttendanceRecord {
   userId: string;
@@ -33,39 +38,80 @@ interface AttendanceRecord {
   present: boolean;
 }
 
-// Mock users
-const mockUsers: AttendanceRecord[] = [
-  { userId: '1', username: 'alice_dev', email: 'alice@compssa.com', present: false },
-  { userId: '2', username: 'bob_coder', email: 'bob@compssa.com', present: false },
-  { userId: '3', username: 'charlie_algo', email: 'charlie@compssa.com', present: false },
-  { userId: '4', username: 'diana_data', email: 'diana@compssa.com', present: false },
-  { userId: '5', username: 'eve_engineer', email: 'eve@compssa.com', present: false },
-  { userId: '6', username: 'frank_fullstack', email: 'frank@compssa.com', present: false },
-  { userId: '7', username: 'grace_graph', email: 'grace@compssa.com', present: false },
-  { userId: '8', username: 'henry_heap', email: 'henry@compssa.com', present: false },
-];
-
 export default function AdminAttendancePage() {
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const sessionIdFromUrl = searchParams.get('sessionId');
   
-  const [selectedSessionId, setSelectedSessionId] = useState<string>(
-    sessionIdFromUrl || mockSessions[0]?.id || ''
-  );
+  const [selectedSessionId, setSelectedSessionId] = useState<string>(sessionIdFromUrl || '');
   const [searchTerm, setSearchTerm] = useState('');
-  const [attendance, setAttendance] = useState<Map<string, AttendanceRecord>>(
-    new Map(mockUsers.map((u) => [u.userId, { ...u }]))
-  );
+  const [attendance, setAttendance] = useState<Map<string, AttendanceRecord>>(new Map());
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Update selected session if URL param changes
+  const { data: sessionsData, isLoading: sessionsLoading } = useQuery({
+    queryKey: ['sessions'],
+    queryFn: () => getSessions({ limit: 100 }),
+  });
+
+  const sessions = sessionsData?.data || [];
+
   useEffect(() => {
     if (sessionIdFromUrl && sessionIdFromUrl !== selectedSessionId) {
       setSelectedSessionId(sessionIdFromUrl);
     }
   }, [sessionIdFromUrl]);
 
-  const selectedSession = mockSessions.find((s) => s.id === selectedSessionId);
+  useEffect(() => {
+    if (!selectedSessionId && sessions.length > 0) {
+      setSelectedSessionId(sessions[0].id);
+    }
+  }, [selectedSessionId, sessions]);
+
+  const { data: usersData, isLoading: usersLoading } = useQuery({
+    queryKey: ['users', 'all'],
+    queryFn: () => getUsers({ limit: 1000 }),
+  });
+
+  const allUsers = usersData?.data || [];
+
+  const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
+    queryKey: ['attendance', 'session', selectedSessionId],
+    queryFn: () => getSessionAttendance(selectedSessionId),
+    enabled: !!selectedSessionId,
+  });
+
+  useEffect(() => {
+    if (allUsers.length > 0 && attendanceData) {
+      const attendanceMap = new Map<string, AttendanceRecord>();
+
+      allUsers.forEach((user) => {
+        const marked = attendanceData.users.find((u) => u.userId === user.id);
+        attendanceMap.set(user.id, {
+          userId: user.id,
+          username: user.username,
+          email: user.email || '',
+          present: marked?.present || false,
+        });
+      });
+
+      setAttendance(attendanceMap);
+      setHasChanges(false);
+    } else if (allUsers.length > 0 && !attendanceData) {
+      const attendanceMap = new Map<string, AttendanceRecord>();
+      allUsers.forEach((user) => {
+        attendanceMap.set(user.id, {
+          userId: user.id,
+          username: user.username,
+          email: user.email || '',
+          present: false,
+        });
+      });
+      setAttendance(attendanceMap);
+      setHasChanges(false);
+    }
+  }, [allUsers, attendanceData]);
+
+  const selectedSession = sessions.find((s) => s.id === selectedSessionId);
 
   const attendanceList = useMemo(() => {
     return Array.from(attendance.values()).filter((user) =>
@@ -82,6 +128,15 @@ export default function AdminAttendancePage() {
 
     return { total, present, absent, rate };
   }, [attendance]);
+
+  const bulkAttendanceMutation = useMutation({
+    mutationFn: markBulkAttendance,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance', 'session', selectedSessionId] });
+      queryClient.refetchQueries({ queryKey: ['attendance', 'session', selectedSessionId] });
+      setHasChanges(false);
+    },
+  });
 
   const toggleAttendance = (userId: string) => {
     const user = attendance.get(userId);
@@ -103,11 +158,32 @@ export default function AdminAttendancePage() {
   };
 
   const handleSave = () => {
-    // Mock API call - would POST to /attendance/bulk
-    console.log('Saving attendance for session:', selectedSessionId);
-    console.log('Attendance:', Array.from(attendance.values()));
-    setHasChanges(false);
-    // Show success toast here
+    if (!selectedSessionId) return;
+
+    const presentUserIds = Array.from(attendance.values())
+      .filter((u) => u.present)
+      .map((u) => u.userId);
+
+    const absentUserIds = Array.from(attendance.values())
+      .filter((u) => !u.present)
+      .map((u) => u.userId);
+
+    Promise.all([
+      presentUserIds.length > 0
+        ? bulkAttendanceMutation.mutateAsync({
+            userIds: presentUserIds,
+            sessionId: selectedSessionId,
+            present: true,
+          })
+        : Promise.resolve(),
+      absentUserIds.length > 0
+        ? bulkAttendanceMutation.mutateAsync({
+            userIds: absentUserIds,
+            sessionId: selectedSessionId,
+            present: false,
+          })
+        : Promise.resolve(),
+    ]);
   };
 
   const handleExport = () => {
@@ -140,9 +216,13 @@ export default function AdminAttendancePage() {
             <Download className="w-4 h-4" />
             Export CSV
           </Button>
-          <Button onClick={handleSave} disabled={!hasChanges} className="gap-2">
+          <Button 
+            onClick={handleSave} 
+            disabled={!hasChanges || !selectedSessionId || bulkAttendanceMutation.isPending} 
+            className="gap-2"
+          >
             <Save className="w-4 h-4" />
-            Save Changes
+            {bulkAttendanceMutation.isPending ? 'Saving...' : 'Save Changes'}
           </Button>
         </div>
       </div>
@@ -220,7 +300,7 @@ export default function AdminAttendancePage() {
                   <SelectValue placeholder="Select session" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockSessions.map((session) => (
+                  {sessions.map((session) => (
                     <SelectItem key={session.id} value={session.id}>
                       {session.name} - {format(new Date(session.date), 'MMM dd, yyyy')}
                     </SelectItem>
@@ -248,8 +328,8 @@ export default function AdminAttendancePage() {
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                     <span>📅 {format(new Date(selectedSession.date), 'MMMM dd, yyyy')}</span>
                     <span>🕐 {format(new Date(selectedSession.startTime), 'HH:mm')} - {format(new Date(selectedSession.endTime), 'HH:mm')}</span>
-                    <span>📍 {selectedSession.location}</span>
-                    <span>👨‍🏫 {selectedSession.instructor}</span>
+                  {selectedSession.location && <span>📍 {selectedSession.location}</span>}
+                  {selectedSession.instructor && <span>👨‍🏫 {selectedSession.instructor}</span>}
                   </div>
                 </div>
                 <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">

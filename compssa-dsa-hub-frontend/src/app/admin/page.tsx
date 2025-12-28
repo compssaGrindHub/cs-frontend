@@ -1,15 +1,40 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, CalendarClock, Code2, Trophy, TrendingUp, UserCheck, BarChart3, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Users, CalendarClock, Code2, Trophy, TrendingUp, UserCheck, BarChart3 } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { getSystemOverview, getUserGrowth, getSubmissionsStats } from '@/lib/api';
+import { Loading } from '@/components/common/Loading';
+import { getProblems } from '@/lib/api';
 
 export default function AdminDashboard() {
-  // Mock data - will be replaced with API calls
+  const { data: overview, isLoading: overviewLoading } = useQuery({
+    queryKey: ['admin', 'overview'],
+    queryFn: getSystemOverview,
+  });
+
+  const { data: userGrowth, isLoading: growthLoading } = useQuery({
+    queryKey: ['admin', 'userGrowth', 'month'],
+    queryFn: () => getUserGrowth({ bucket: 'month' }),
+  });
+
+  const { data: submissionsStats, isLoading: submissionsLoading } = useQuery({
+    queryKey: ['admin', 'submissions'],
+    queryFn: () => getSubmissionsStats(),
+  });
+
+  const { data: problemsData, isLoading: problemsLoading } = useQuery({
+    queryKey: ['problems'],
+    queryFn: () => getProblems({ limit: 1000 }),
+  });
+
+  const isLoading = overviewLoading || growthLoading || submissionsLoading || problemsLoading;
+
   const stats = [
     { 
       title: 'Total Users', 
-      value: '248', 
+      value: overview?.users?.toString() || '0', 
       icon: Users, 
       change: '+12%', 
       trend: 'up',
@@ -20,7 +45,7 @@ export default function AdminDashboard() {
     },
     { 
       title: 'Active Sessions', 
-      value: '8', 
+      value: overview?.sessions?.toString() || '0', 
       icon: CalendarClock, 
       change: '+3', 
       trend: 'up',
@@ -31,7 +56,7 @@ export default function AdminDashboard() {
     },
     { 
       title: 'Total Problems', 
-      value: '342', 
+      value: overview?.problems?.toString() || '0', 
       icon: Code2, 
       change: '+18', 
       trend: 'up',
@@ -42,7 +67,7 @@ export default function AdminDashboard() {
     },
     { 
       title: 'Contests', 
-      value: '12', 
+      value: overview?.contests?.toString() || '0', 
       icon: Trophy, 
       change: '0', 
       trend: 'neutral',
@@ -53,7 +78,7 @@ export default function AdminDashboard() {
     },
     { 
       title: 'Avg. Attendance', 
-      value: '87%', 
+      value: overview?.attendance?.toString() || '0', 
       icon: UserCheck, 
       change: '+5%', 
       trend: 'up',
@@ -64,7 +89,7 @@ export default function AdminDashboard() {
     },
     { 
       title: 'Engagement Rate', 
-      value: '74%', 
+      value: overview?.submissions?.toString() || '0', 
       icon: TrendingUp, 
       change: '+8%', 
       trend: 'up',
@@ -75,40 +100,44 @@ export default function AdminDashboard() {
     },
   ];
 
-  // Mock chart data
-  const userGrowthData = [
-    { month: 'Jul', users: 145 },
-    { month: 'Aug', users: 162 },
-    { month: 'Sep', users: 178 },
-    { month: 'Oct', users: 195 },
-    { month: 'Nov', users: 221 },
-    { month: 'Dec', users: 248 },
-  ];
+  const userGrowthData = userGrowth?.points.map((p) => ({
+    month: p.key,
+    users: p.count,
+  })) || [];
 
-  const submissionData = [
-    { day: 'Mon', count: 42 },
-    { day: 'Tue', count: 58 },
-    { day: 'Wed', count: 51 },
-    { day: 'Thu', count: 67 },
-    { day: 'Fri', count: 73 },
-    { day: 'Sat', count: 38 },
-    { day: 'Sun', count: 29 },
-  ];
+  const submissionData = submissionsStats?.daily.map((d) => ({
+    day: d.key,
+    count: d.count,
+  })) || [];
 
-  const platformDistribution = [
-    { name: 'LeetCode', value: 156, color: '#FFA116' },
-    { name: 'Codeforces', value: 98, color: '#1F8ACB' },
-    { name: 'AtCoder', value: 54, color: '#000000' },
-    { name: 'CodeChef', value: 34, color: '#5B4638' },
-  ];
+  const platformDistribution = (() => {
+    const platforms: Record<string, number> = {};
+    problemsData?.data.forEach((p) => {
+      const platform = p.platform || 'Other';
+      platforms[platform] = (platforms[platform] || 0) + 1;
+    });
+    const colors: Record<string, string> = {
+      'LEETCODE': '#FFA116',
+      'CODEFORCES': '#1F8ACB',
+      'ATCODER': '#000000',
+      'CODECHEF': '#5B4638',
+    };
+    return Object.entries(platforms).map(([name, value]) => ({
+      name,
+      value,
+      color: colors[name.toUpperCase()] || '#6b7280',
+    }));
+  })();
 
-  const recentActivity = [
-    { user: 'johndoe', action: 'Solved', target: 'Two Sum', time: '2 mins ago', type: 'submission' },
-    { user: 'admin', action: 'Created', target: 'Weekly Contest 45', time: '15 mins ago', type: 'contest' },
-    { user: 'janedoe', action: 'Registered for', target: 'Advanced Algorithms', time: '23 mins ago', type: 'session' },
-    { user: 'instructor01', action: 'Marked attendance for', target: 'DSA Workshop', time: '1 hour ago', type: 'attendance' },
-    { user: 'newuser123', action: 'Joined', target: 'CompSSA Hub', time: '2 hours ago', type: 'user' },
-  ];
+  const recentActivity: Array<{ user: string; action: string; target: string; time: string; type: string }> = [];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <Loading size="lg" label="Loading dashboard..." />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -295,31 +324,35 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-start gap-3 pb-4 border-b border-border last:border-0 last:pb-0">
-                  <div className={`p-2 rounded-lg ${
-                    activity.type === 'submission' ? 'bg-emerald-500/10' :
-                    activity.type === 'contest' ? 'bg-yellow-500/10' :
-                    activity.type === 'session' ? 'bg-purple-500/10' :
-                    activity.type === 'attendance' ? 'bg-green-500/10' :
-                    'bg-blue-500/10'
-                  }`}>
-                    {activity.type === 'submission' && <Code2 className="w-4 h-4 text-emerald-500" />}
-                    {activity.type === 'contest' && <Trophy className="w-4 h-4 text-yellow-500" />}
-                    {activity.type === 'session' && <CalendarClock className="w-4 h-4 text-purple-500" />}
-                    {activity.type === 'attendance' && <UserCheck className="w-4 h-4 text-green-500" />}
-                    {activity.type === 'user' && <Users className="w-4 h-4 text-blue-500" />}
+              {recentActivity.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No recent activity</p>
+              ) : (
+                recentActivity.map((activity, index) => (
+                  <div key={index} className="flex items-start gap-3 pb-4 border-b border-border last:border-0 last:pb-0">
+                    <div className={`p-2 rounded-lg ${
+                      activity.type === 'submission' ? 'bg-emerald-500/10' :
+                      activity.type === 'contest' ? 'bg-yellow-500/10' :
+                      activity.type === 'session' ? 'bg-purple-500/10' :
+                      activity.type === 'attendance' ? 'bg-green-500/10' :
+                      'bg-blue-500/10'
+                    }`}>
+                      {activity.type === 'submission' && <Code2 className="w-4 h-4 text-emerald-500" />}
+                      {activity.type === 'contest' && <Trophy className="w-4 h-4 text-yellow-500" />}
+                      {activity.type === 'session' && <CalendarClock className="w-4 h-4 text-purple-500" />}
+                      {activity.type === 'attendance' && <UserCheck className="w-4 h-4 text-green-500" />}
+                      {activity.type === 'user' && <Users className="w-4 h-4 text-blue-500" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground">
+                        <span className="font-medium">{activity.user}</span>{' '}
+                        <span className="text-muted-foreground">{activity.action}</span>{' '}
+                        <span className="font-medium">{activity.target}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground">
-                      <span className="font-medium">{activity.user}</span>{' '}
-                      <span className="text-muted-foreground">{activity.action}</span>{' '}
-                      <span className="font-medium">{activity.target}</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

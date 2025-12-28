@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,19 +26,8 @@ import {
 } from '@/components/ui/table';
 import { Search, Users, TrendingUp, Award, Trash2, ExternalLink, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  role: 'USER' | 'ADMIN' | 'INSTRUCTOR';
-  totalRating: number;
-  globalRank: number;
-  currentStreak: number;
-  problemsSolved: number;
-  contestsParticipated: number;
-  createdAt: string;
-}
+import { getUsers, deleteUser, User } from '@/lib/api';
+import { Loading } from '@/components/common/Loading';
 
 const roleColors = {
   USER: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
@@ -45,90 +35,31 @@ const roleColors = {
   INSTRUCTOR: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
 };
 
-const mockUsers: User[] = [
-  {
-    id: '1',
-    username: 'alice_dev',
-    email: 'alice@compssa.com',
-    role: 'USER',
-    totalRating: 2450,
-    globalRank: 1,
-    currentStreak: 15,
-    problemsSolved: 342,
-    contestsParticipated: 28,
-    createdAt: '2024-08-15T10:00:00Z',
-  },
-  {
-    id: '2',
-    username: 'bob_coder',
-    email: 'bob@compssa.com',
-    role: 'USER',
-    totalRating: 2180,
-    globalRank: 2,
-    currentStreak: 8,
-    problemsSolved: 287,
-    contestsParticipated: 22,
-    createdAt: '2024-09-10T14:30:00Z',
-  },
-  {
-    id: '3',
-    username: 'charlie_algo',
-    email: 'charlie@compssa.com',
-    role: 'INSTRUCTOR',
-    totalRating: 2850,
-    globalRank: 0,
-    currentStreak: 42,
-    problemsSolved: 521,
-    contestsParticipated: 45,
-    createdAt: '2024-01-05T08:00:00Z',
-  },
-  {
-    id: '4',
-    username: 'diana_data',
-    email: 'diana@compssa.com',
-    role: 'USER',
-    totalRating: 1920,
-    globalRank: 3,
-    currentStreak: 3,
-    problemsSolved: 198,
-    contestsParticipated: 15,
-    createdAt: '2024-10-20T16:45:00Z',
-  },
-  {
-    id: '5',
-    username: 'admin',
-    email: 'admin@compssa.com',
-    role: 'ADMIN',
-    totalRating: 2450,
-    globalRank: 0,
-    currentStreak: 15,
-    problemsSolved: 342,
-    contestsParticipated: 28,
-    createdAt: '2024-01-01T00:00:00Z',
-  },
-];
-
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'USER' | 'ADMIN' | 'INSTRUCTOR'>('ALL');
+  const [page, setPage] = useState(1);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
+  const { data: usersData, isLoading: usersLoading } = useQuery({
+    queryKey: ['users', { page, search: searchTerm, roleFilter }],
+    queryFn: () => getUsers({ page, limit: 20, search: searchTerm || undefined }),
+  });
+
+  const users = usersData?.data || [];
+  const meta = usersData?.meta;
+
   const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
-      const matchesSearch =
-        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesRole = roleFilter === 'ALL' || user.role === roleFilter;
-      return matchesSearch && matchesRole;
-    });
-  }, [users, searchTerm, roleFilter]);
+    if (roleFilter === 'ALL') return users;
+    return users.filter((user) => user.role === roleFilter);
+  }, [users, roleFilter]);
 
   const stats = [
     {
       label: 'Total Users',
-      value: users.length,
+      value: meta?.total || 0,
       color: 'text-blue-500',
       icon: Users,
       description: 'Registered members',
@@ -149,17 +80,33 @@ export default function AdminUsersPage() {
     },
   ];
 
+  const deleteUserMutation = useMutation({
+    mutationFn: deleteUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.refetchQueries({ queryKey: ['users'] });
+      setIsDeleteDialogOpen(false);
+      setSelectedUser(null);
+    },
+  });
+
   const handleDelete = () => {
     if (!selectedUser) return;
-    setUsers(users.filter((u) => u.id !== selectedUser.id));
-    setIsDeleteDialogOpen(false);
-    setSelectedUser(null);
+    deleteUserMutation.mutate(selectedUser.id);
   };
 
   const openDeleteDialog = (user: User) => {
     setSelectedUser(user);
     setIsDeleteDialogOpen(true);
   };
+
+  if (usersLoading) {
+    return (
+      <div className="space-y-6">
+        <Loading size="lg" label="Loading users..." />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -338,11 +285,11 @@ export default function AdminUsersPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={deleteUserMutation.isPending}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete User
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteUserMutation.isPending}>
+              {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -98,12 +98,26 @@ export const getAttendanceStats = async (userId: string): Promise<ApiResponse<At
   return response.data;
 };
 
+export interface SessionAttendanceResponse {
+  sessionId: string;
+  sessionName: string;
+  sessionType: string;
+  total: number;
+  present: number;
+  absent: number;
+  users: Array<{
+    userId: string;
+    username: string;
+    present: boolean;
+  }>;
+}
+
 /**
  * Get session attendance (admin only)
  * GET /api/attendance/session/:sessionId
  */
-export const getSessionAttendance = async (sessionId: string): Promise<ApiResponse<Attendance[]>> => {
-  const response = await apiClient.get<ApiResponse<Attendance[]>>(`/attendance/session/${sessionId}`);
-  return response.data;
+export const getSessionAttendance = async (sessionId: string): Promise<SessionAttendanceResponse> => {
+  const response = await apiClient.get<ApiResponse<SessionAttendanceResponse>>(`/attendance/session/${sessionId}`);
+  return response.data.data as SessionAttendanceResponse;
 };
 

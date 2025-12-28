@@ -46,8 +46,8 @@ interface PaginatedContestsResponse {
  * Get all contests with filters
  * GET /api/contests
  */
-export const getContests = async (params?: GetContestsParams): Promise<ApiResponse<PaginatedContestsResponse>> => {
-  const response = await apiClient.get<ApiResponse<PaginatedContestsResponse>>('/contests', { params });
+export const getContests = async (params?: GetContestsParams): Promise<PaginatedContestsResponse & { success: boolean }> => {
+  const response = await apiClient.get<PaginatedContestsResponse & { success: boolean }>('/contests', { params });
   return response.data;
 };
 

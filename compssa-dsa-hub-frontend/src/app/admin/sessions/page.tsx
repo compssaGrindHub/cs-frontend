@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,20 +26,9 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Edit2, Trash2, Calendar, Clock, MapPin, Users, ChevronRight, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
-
-interface Session {
-  id: string;
-  name: string;
-  type: 'LECTURE' | 'PRACTICE' | 'CONTEST' | 'WORKSHOP' | 'OTHER';
-  date: string;
-  startTime: string;
-  endTime: string;
-  instructor: string;
-  description: string;
-  location: string;
-  capacity: number;
-  attendees: number;
-}
+import { getSessions, createSession, updateSession, deleteSession } from '@/lib/api';
+import { Session, SessionType } from '@/lib/api/sessions';
+import { Loading } from '@/components/common/Loading';
 
 const sessionTypes = [
   { value: 'LECTURE', label: 'Lecture', color: 'bg-blue-500' },
@@ -48,91 +38,123 @@ const sessionTypes = [
   { value: 'OTHER', label: 'Other', color: 'bg-gray-500' },
 ];
 
-const mockSessions: Session[] = [
-  {
-    id: '1',
-    name: 'Algorithms Masterclass',
-    type: 'LECTURE',
-    date: '2025-01-10',
-    startTime: '10:00',
-    endTime: '12:00',
-    instructor: 'Dr. Smith',
-    description: 'Deep dive into sorting algorithms and their complexities',
-    location: 'Room 101',
-    capacity: 50,
-    attendees: 42,
-  },
-  {
-    id: '2',
-    name: 'Practice Session',
-    type: 'PRACTICE',
-    date: '2025-01-15',
-    startTime: '14:00',
-    endTime: '16:00',
-    instructor: 'Sarah Johnson',
-    description: 'Hands-on problem solving for LeetCode mediums',
-    location: 'Lab A',
-    capacity: 30,
-    attendees: 28,
-  },
-];
+const emptySession = {
+  name: '',
+  type: 'LECTURE' as SessionType,
+  date: '',
+  startTime: '',
+  endTime: '',
+  instructor: '',
+  description: '',
+  location: '',
+  capacity: 50,
+};
 
 export default function SessionManagementPage() {
-  const [sessions, setSessions] = useState<Session[]>(mockSessions);
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<Partial<Session>>({
-    name: '',
-    type: 'LECTURE',
-    date: '',
-    startTime: '',
-    endTime: '',
-    instructor: '',
-    description: '',
-    location: '',
-    capacity: 50,
-    attendees: 0,
+  const [formData, setFormData] = useState(emptySession);
+
+  const { data: sessionsData, isLoading } = useQuery({
+    queryKey: ['sessions'],
+    queryFn: () => getSessions({ limit: 100 }),
+  });
+
+  const sessions = sessionsData?.data || [];
+  const meta = sessionsData?.meta;
+
+  const createMutation = useMutation({
+    mutationFn: createSession,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.refetchQueries({ queryKey: ['sessions'] });
+      resetForm();
+      setIsOpen(false);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => updateSession(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.refetchQueries({ queryKey: ['sessions'] });
+      resetForm();
+      setIsOpen(false);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteSession,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.refetchQueries({ queryKey: ['sessions'] });
+    },
   });
 
   const handleSave = () => {
-    if (editingId) {
-      setSessions((prev) =>
-        prev.map((s) => (s.id === editingId ? { ...s, ...formData } : s))
-      );
-    } else {
-      setSessions((prev) => [
-        ...prev,
-        { ...formData as Session, id: Date.now().toString(), attendees: 0 },
-      ]);
+    const sessionDate = new Date(formData.date);
+    const startDateTime = new Date(`${formData.date}T${formData.startTime}`);
+    const endDateTime = new Date(`${formData.date}T${formData.endTime}`);
+
+    const baseData: any = {
+      name: formData.name,
+      type: formData.type,
+      date: sessionDate.toISOString(),
+      startTime: startDateTime.toISOString(),
+      endTime: endDateTime.toISOString(),
+    };
+
+    if (formData.instructor) {
+      baseData.instructor = formData.instructor;
     }
-    resetForm();
-    setIsOpen(false);
+    if (formData.description) {
+      baseData.description = formData.description;
+    }
+    if (formData.location) {
+      baseData.location = formData.location;
+    }
+    if (formData.capacity) {
+      baseData.capacity = formData.capacity;
+    }
+
+    if (editingId) {
+      updateMutation.mutate({
+        id: editingId,
+        data: baseData,
+      });
+    } else {
+      createMutation.mutate(baseData);
+    }
   };
 
   const handleEdit = (session: Session) => {
     setEditingId(session.id);
-    setFormData(session);
+    const sessionDate = new Date(session.date);
+    const startDate = new Date(session.startTime);
+    const endDate = new Date(session.endTime);
+    
+    setFormData({
+      name: session.name,
+      type: session.type,
+      date: sessionDate.toISOString().split('T')[0],
+      startTime: startDate.toTimeString().slice(0, 5),
+      endTime: endDate.toTimeString().slice(0, 5),
+      instructor: session.instructor || '',
+      description: session.description || '',
+      location: session.location || '',
+      capacity: session.capacity || 50,
+    });
     setIsOpen(true);
   };
 
   const handleDelete = (id: string) => {
-    setSessions((prev) => prev.filter((s) => s.id !== id));
+    deleteMutation.mutate(id);
   };
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({
-      name: '',
-      type: 'LECTURE',
-      date: '',
-      startTime: '',
-      endTime: '',
-      instructor: '',
-      description: '',
-      location: '',
-      capacity: 50,
-      attendees: 0,
-    });
+    setFormData(emptySession);
   };
 
   const getTypeColor = (type: string) => {
@@ -142,6 +164,14 @@ export default function SessionManagementPage() {
   const getTypeLabel = (type: string) => {
     return sessionTypes.find((t) => t.value === type)?.label || type;
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <Loading size="lg" label="Loading sessions..." />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -295,8 +325,11 @@ export default function SessionManagementPage() {
               <Button
                 className="bg-primary hover:bg-primary/90 text-primary-foreground"
                 onClick={handleSave}
+                disabled={createMutation.isPending || updateMutation.isPending}
               >
-                {editingId ? 'Update Session' : 'Create Session'}
+                {createMutation.isPending || updateMutation.isPending
+                  ? (editingId ? 'Updating...' : 'Creating...')
+                  : (editingId ? 'Update Session' : 'Create Session')}
               </Button>
             </div>
           </DialogContent>
@@ -327,7 +360,7 @@ export default function SessionManagementPage() {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="w-4 h-4 text-primary" />
-                      {session.startTime} - {session.endTime}
+                      {format(new Date(session.startTime), 'HH:mm')} - {format(new Date(session.endTime), 'HH:mm')}
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <MapPin className="w-4 h-4 text-primary" />
@@ -335,7 +368,7 @@ export default function SessionManagementPage() {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Users className="w-4 h-4 text-primary" />
-                      {session.attendees}/{session.capacity}
+                      {session.attendances?.filter(a => a.present).length || 0}/{session.capacity || 'N/A'}
                     </div>
                   </div>
 

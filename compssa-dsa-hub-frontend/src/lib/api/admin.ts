@@ -100,86 +100,48 @@ interface UserGrowthParams extends DateRangeParams {
  * Get system overview (admin only)
  * GET /api/admin/overview
  */
-export const getSystemOverview = async (): Promise<ApiResponse<SystemOverview>> => {
+export const getSystemOverview = async (): Promise<SystemOverview> => {
   const response = await apiClient.get<ApiResponse<SystemOverview>>('/admin/overview');
-  return response.data;
+  return response.data.data as SystemOverview;
 };
 
-/**
- * Get user growth (admin only)
- * GET /api/admin/users/growth
- */
-export const getUserGrowth = async (params?: UserGrowthParams): Promise<ApiResponse<UserGrowth>> => {
+export const getUserGrowth = async (params?: UserGrowthParams): Promise<UserGrowth> => {
   const response = await apiClient.get<ApiResponse<UserGrowth>>('/admin/users/growth', { params });
-  return response.data;
+  return response.data.data as UserGrowth;
 };
 
-/**
- * Get engagement metrics (admin only)
- * GET /api/admin/engagement
- */
-export const getEngagement = async (params?: DateRangeParams): Promise<ApiResponse<Engagement>> => {
+export const getEngagement = async (params?: DateRangeParams): Promise<Engagement> => {
   const response = await apiClient.get<ApiResponse<Engagement>>('/admin/engagement', { params });
-  return response.data;
+  return response.data.data as Engagement;
 };
 
-/**
- * Get attendance analytics (admin only)
- * GET /api/admin/attendance/stats
- */
-export const getAttendanceAnalytics = async (
-  params?: DateRangeParams
-): Promise<ApiResponse<AttendanceAnalytics>> => {
+export const getAttendanceAnalytics = async (params?: DateRangeParams): Promise<AttendanceAnalytics> => {
   const response = await apiClient.get<ApiResponse<AttendanceAnalytics>>('/admin/attendance/stats', { params });
-  return response.data;
+  return response.data.data as AttendanceAnalytics;
 };
 
-/**
- * Get notifications usage (admin only)
- * GET /api/admin/notifications/usage
- */
-export const getNotificationsUsage = async (params?: DateRangeParams): Promise<ApiResponse<NotificationsUsage>> => {
+export const getNotificationsUsage = async (params?: DateRangeParams): Promise<NotificationsUsage> => {
   const response = await apiClient.get<ApiResponse<NotificationsUsage>>('/admin/notifications/usage', { params });
-  return response.data;
+  return response.data.data as NotificationsUsage;
 };
 
-/**
- * Get achievements stats (admin only)
- * GET /api/admin/achievements/stats
- */
-export const getAchievementsStats = async (): Promise<ApiResponse<AchievementStats>> => {
+export const getAchievementsStats = async (): Promise<AchievementStats> => {
   const response = await apiClient.get<ApiResponse<AchievementStats>>('/admin/achievements/stats');
-  return response.data;
+  return response.data.data as AchievementStats;
 };
 
-/**
- * Get contest participation (admin only)
- * GET /api/admin/contests/:contestId/participation
- */
-export const getContestParticipation = async (
-  contestId: string
-): Promise<ApiResponse<ContestParticipation>> => {
-  const response = await apiClient.get<ApiResponse<ContestParticipation>>(
-    `/admin/contests/${contestId}/participation`
-  );
-  return response.data;
+export const getContestParticipation = async (contestId: string): Promise<ContestParticipation> => {
+  const response = await apiClient.get<ApiResponse<ContestParticipation>>(`/admin/contests/${contestId}/participation`);
+  return response.data.data as ContestParticipation;
 };
 
-/**
- * Get submissions stats (admin only)
- * GET /api/admin/submissions/stats
- */
-export const getSubmissionsStats = async (params?: DateRangeParams): Promise<ApiResponse<SubmissionsStats>> => {
+export const getSubmissionsStats = async (params?: DateRangeParams): Promise<SubmissionsStats> => {
   const response = await apiClient.get<ApiResponse<SubmissionsStats>>('/admin/submissions/stats', { params });
-  return response.data;
+  return response.data.data as SubmissionsStats;
 };
 
-/**
- * Get usage time stats (admin only)
- * GET /api/admin/usage/time
- */
-export const getUsageTimeStats = async (params?: DateRangeParams): Promise<ApiResponse<UsageTimeStats>> => {
+export const getUsageTimeStats = async (params?: DateRangeParams): Promise<UsageTimeStats> => {
   const response = await apiClient.get<ApiResponse<UsageTimeStats>>('/admin/usage/time', { params });
-  return response.data;
+  return response.data.data as UsageTimeStats;
 };
 

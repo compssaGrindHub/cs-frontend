@@ -88,8 +88,8 @@ interface PaginatedSessionsResponse {
  * Get all sessions with filters
  * GET /api/sessions
  */
-export const getSessions = async (params?: GetSessionsParams): Promise<ApiResponse<PaginatedSessionsResponse>> => {
-  const response = await apiClient.get<ApiResponse<PaginatedSessionsResponse>>('/sessions', { params });
+export const getSessions = async (params?: GetSessionsParams): Promise<PaginatedSessionsResponse & { success: boolean }> => {
+  const response = await apiClient.get<PaginatedSessionsResponse & { success: boolean }>('/sessions', { params });
   return response.data;
 };
 

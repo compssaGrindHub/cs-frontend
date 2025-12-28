@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,28 +32,14 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Search, Pencil, Trash2, Upload, ExternalLink, Code2 } from 'lucide-react';
+import { getProblems, createProblem, updateProblem, deleteProblem, bulkImportProblems } from '@/lib/api';
+import { Problem, Platform, Difficulty } from '@/lib/types/problem';
+import { Loading } from '@/components/common/Loading';
 
-type Platform = 'LEETCODE' | 'CODEFORCES' | 'ATCODER' | 'CODECHEF' | 'OTHER';
-type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
-
-interface Problem {
-  id: string;
-  title: string;
-  slug: string;
-  platform: Platform;
-  difficulty: Difficulty;
-  problemLink: string;
-  topics: string[];
-  acceptanceRate: number;
-  isDailyQuestion: boolean;
-}
-
-const platformColors: Record<Platform, string> = {
+const platformColors: Record<string, string> = {
   LEETCODE: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
   CODEFORCES: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-  ATCODER: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
-  CODECHEF: 'bg-brown-500/10 text-amber-600 border-amber-500/20',
-  OTHER: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+  CUSTOM: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
 };
 
 const difficultyColors: Record<Difficulty, string> = {
@@ -61,55 +48,20 @@ const difficultyColors: Record<Difficulty, string> = {
   HARD: 'bg-red-500/10 text-red-500 border-red-500/20',
 };
 
-const mockProblems: Problem[] = [
-  {
-    id: '1',
-    title: 'Two Sum',
-    slug: 'two-sum',
-    platform: 'LEETCODE',
-    difficulty: 'EASY',
-    problemLink: 'https://leetcode.com/problems/two-sum',
-    topics: ['Array', 'Hash Table'],
-    acceptanceRate: 49.2,
-    isDailyQuestion: false,
-  },
-  {
-    id: '2',
-    title: 'Longest Substring Without Repeating Characters',
-    slug: 'longest-substring-without-repeating-characters',
-    platform: 'LEETCODE',
-    difficulty: 'MEDIUM',
-    problemLink: 'https://leetcode.com/problems/longest-substring-without-repeating-characters',
-    topics: ['String', 'Sliding Window', 'Hash Table'],
-    acceptanceRate: 33.8,
-    isDailyQuestion: true,
-  },
-  {
-    id: '3',
-    title: 'Median of Two Sorted Arrays',
-    slug: 'median-of-two-sorted-arrays',
-    platform: 'LEETCODE',
-    difficulty: 'HARD',
-    problemLink: 'https://leetcode.com/problems/median-of-two-sorted-arrays',
-    topics: ['Array', 'Binary Search', 'Divide and Conquer'],
-    acceptanceRate: 36.7,
-    isDailyQuestion: false,
-  },
-];
-
-const emptyProblem: Omit<Problem, 'id'> = {
+const emptyProblem = {
   title: '',
   slug: '',
-  platform: 'LEETCODE',
-  difficulty: 'MEDIUM',
+  platform: 'LEETCODE' as Platform,
+  difficulty: 'MEDIUM' as Difficulty,
   problemLink: '',
-  topics: [],
-  acceptanceRate: 0,
-  isDailyQuestion: false,
+  topics: [] as string[],
+  description: '',
+  acceptanceRate: undefined as number | undefined,
 };
 
 export default function AdminProblemsPage() {
-  const [problems, setProblems] = useState<Problem[]>(mockProblems);
+  const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [platformFilter, setPlatformFilter] = useState<Platform | 'ALL'>('ALL');
   const [difficultyFilter, setDifficultyFilter] = useState<Difficulty | 'ALL'>('ALL');
@@ -118,75 +70,114 @@ export default function AdminProblemsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
-  const [formData, setFormData] = useState<Omit<Problem, 'id'>>(emptyProblem);
+  const [formData, setFormData] = useState(emptyProblem);
   const [topicsInput, setTopicsInput] = useState('');
   const [bulkData, setBulkData] = useState('');
 
-  const filteredProblems = useMemo(() => {
-    return problems.filter((problem) => {
-      const matchesSearch =
-        problem.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        problem.topics.some((t) => t.toLowerCase().includes(searchTerm.toLowerCase()));
-      const matchesPlatform = platformFilter === 'ALL' || problem.platform === platformFilter;
-      const matchesDifficulty = difficultyFilter === 'ALL' || problem.difficulty === difficultyFilter;
-      return matchesSearch && matchesPlatform && matchesDifficulty;
-    });
-  }, [problems, searchTerm, platformFilter, difficultyFilter]);
+  const { data: problemsData, isLoading } = useQuery({
+    queryKey: ['problems', page, platformFilter, difficultyFilter, searchTerm],
+    queryFn: () => getProblems({
+      page,
+      limit: 50,
+      platform: platformFilter !== 'ALL' ? platformFilter : undefined,
+      difficulty: difficultyFilter !== 'ALL' ? difficultyFilter : undefined,
+      search: searchTerm || undefined,
+    }),
+  });
+
+  const problems = problemsData?.data || [];
+  const meta = problemsData?.meta;
+
+  const createMutation = useMutation({
+    mutationFn: createProblem,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['problems'] });
+      queryClient.refetchQueries({ queryKey: ['problems'] });
+      setIsCreateDialogOpen(false);
+      setFormData(emptyProblem);
+      setTopicsInput('');
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => updateProblem(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['problems'] });
+      queryClient.refetchQueries({ queryKey: ['problems'] });
+      setIsEditDialogOpen(false);
+      setSelectedProblem(null);
+      setFormData(emptyProblem);
+      setTopicsInput('');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteProblem,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['problems'] });
+      queryClient.refetchQueries({ queryKey: ['problems'] });
+      setIsDeleteDialogOpen(false);
+      setSelectedProblem(null);
+    },
+  });
+
+  const bulkImportMutation = useMutation({
+    mutationFn: bulkImportProblems,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['problems'] });
+      queryClient.refetchQueries({ queryKey: ['problems'] });
+      setIsBulkImportOpen(false);
+      setBulkData('');
+    },
+  });
 
   const stats = [
-    { label: 'Total Problems', value: problems.length, color: 'text-blue-500' },
+    { label: 'Total Problems', value: meta?.total || 0, color: 'text-blue-500' },
     { label: 'Easy', value: problems.filter((p) => p.difficulty === 'EASY').length, color: 'text-green-500' },
     { label: 'Medium', value: problems.filter((p) => p.difficulty === 'MEDIUM').length, color: 'text-yellow-500' },
     { label: 'Hard', value: problems.filter((p) => p.difficulty === 'HARD').length, color: 'text-red-500' },
   ];
 
   const handleCreate = () => {
-    const newProblem: Problem = {
-      ...formData,
-      id: `prob-${Date.now()}`,
+    createMutation.mutate({
+      title: formData.title,
+      slug: formData.slug,
+      platform: formData.platform,
+      difficulty: formData.difficulty,
+      problemLink: formData.problemLink,
+      description: formData.description,
       topics: topicsInput.split(',').map((t) => t.trim()).filter(Boolean),
-    };
-    setProblems([...problems, newProblem]);
-    setIsCreateDialogOpen(false);
-    setFormData(emptyProblem);
-    setTopicsInput('');
+      acceptanceRate: formData.acceptanceRate,
+    });
   };
 
   const handleEdit = () => {
     if (!selectedProblem) return;
-    setProblems(
-      problems.map((p) =>
-        p.id === selectedProblem.id
-          ? { ...formData, id: p.id, topics: topicsInput.split(',').map((t) => t.trim()).filter(Boolean) }
-          : p
-      )
-    );
-    setIsEditDialogOpen(false);
-    setSelectedProblem(null);
-    setFormData(emptyProblem);
-    setTopicsInput('');
+    updateMutation.mutate({
+      id: selectedProblem.id,
+      data: {
+        title: formData.title,
+        slug: formData.slug,
+        platform: formData.platform,
+        difficulty: formData.difficulty,
+        problemLink: formData.problemLink,
+        description: formData.description,
+        topics: topicsInput.split(',').map((t) => t.trim()).filter(Boolean),
+        acceptanceRate: formData.acceptanceRate,
+      },
+    });
   };
 
   const handleDelete = () => {
     if (!selectedProblem) return;
-    setProblems(problems.filter((p) => p.id !== selectedProblem.id));
-    setIsDeleteDialogOpen(false);
-    setSelectedProblem(null);
+    deleteMutation.mutate(selectedProblem.id);
   };
 
   const handleBulkImport = () => {
     try {
-      const imported = JSON.parse(bulkData);
-      const newProblems = Array.isArray(imported) ? imported : [imported];
-      setProblems([
-        ...problems,
-        ...newProblems.map((p: any) => ({
-          ...p,
-          id: `prob-${Date.now()}-${Math.random()}`,
-        })),
-      ]);
-      setIsBulkImportOpen(false);
-      setBulkData('');
+      const parsed = JSON.parse(bulkData);
+      const problemsArray = Array.isArray(parsed) ? parsed : [parsed];
+      bulkImportMutation.mutate({ problems: problemsArray });
     } catch (error) {
       alert('Invalid JSON format');
     }
@@ -200,9 +191,9 @@ export default function AdminProblemsPage() {
       platform: problem.platform,
       difficulty: problem.difficulty,
       problemLink: problem.problemLink,
+      description: problem.description || '',
       topics: problem.topics,
       acceptanceRate: problem.acceptanceRate,
-      isDailyQuestion: problem.isDailyQuestion,
     });
     setTopicsInput(problem.topics.join(', '));
     setIsEditDialogOpen(true);
@@ -212,6 +203,14 @@ export default function AdminProblemsPage() {
     setSelectedProblem(problem);
     setIsDeleteDialogOpen(true);
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Loading size="lg" label="Loading problems..." />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -269,9 +268,7 @@ export default function AdminProblemsPage() {
                 <SelectItem value="ALL">All Platforms</SelectItem>
                 <SelectItem value="LEETCODE">LeetCode</SelectItem>
                 <SelectItem value="CODEFORCES">Codeforces</SelectItem>
-                <SelectItem value="ATCODER">AtCoder</SelectItem>
-                <SelectItem value="CODECHEF">CodeChef</SelectItem>
-                <SelectItem value="OTHER">Other</SelectItem>
+                <SelectItem value="CUSTOM">Custom</SelectItem>
               </SelectContent>
             </Select>
             <Select value={difficultyFilter} onValueChange={(v) => setDifficultyFilter(v as Difficulty | 'ALL')}>
@@ -297,19 +294,18 @@ export default function AdminProblemsPage() {
                   <TableHead className="text-muted-foreground">Difficulty</TableHead>
                   <TableHead className="text-muted-foreground">Topics</TableHead>
                   <TableHead className="text-muted-foreground">Acceptance</TableHead>
-                  <TableHead className="text-muted-foreground">Daily</TableHead>
                   <TableHead className="text-right text-muted-foreground">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProblems.length === 0 ? (
+                {problems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No problems found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredProblems.map((problem) => (
+                  problems.map((problem) => (
                     <TableRow key={problem.id} className="hover:bg-muted/50">
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -347,11 +343,8 @@ export default function AdminProblemsPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-foreground">{problem.acceptanceRate.toFixed(1)}%</TableCell>
-                      <TableCell>
-                        {problem.isDailyQuestion && (
-                          <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20">Daily</Badge>
-                        )}
+                      <TableCell className="text-foreground">
+                        {problem.acceptanceRate ? `${problem.acceptanceRate.toFixed(1)}%` : 'N/A'}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -430,6 +423,18 @@ export default function AdminProblemsPage() {
                 />
               </div>
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description" className="text-foreground">
+                Description
+              </Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="bg-background border-border"
+                placeholder="Problem description..."
+              />
+            </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="platform" className="text-foreground">
@@ -445,9 +450,7 @@ export default function AdminProblemsPage() {
                   <SelectContent>
                     <SelectItem value="LEETCODE">LeetCode</SelectItem>
                     <SelectItem value="CODEFORCES">Codeforces</SelectItem>
-                    <SelectItem value="ATCODER">AtCoder</SelectItem>
-                    <SelectItem value="CODECHEF">CodeChef</SelectItem>
-                    <SelectItem value="OTHER">Other</SelectItem>
+                    <SelectItem value="CUSTOM">Custom</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -476,8 +479,8 @@ export default function AdminProblemsPage() {
                 <Input
                   id="acceptance"
                   type="number"
-                  value={formData.acceptanceRate}
-                  onChange={(e) => setFormData({ ...formData, acceptanceRate: parseFloat(e.target.value) || 0 })}
+                  value={formData.acceptanceRate || ''}
+                  onChange={(e) => setFormData({ ...formData, acceptanceRate: e.target.value ? parseFloat(e.target.value) : undefined })}
                   className="bg-background border-border"
                   placeholder="0-100"
                 />
@@ -495,25 +498,13 @@ export default function AdminProblemsPage() {
                 placeholder="e.g., Array, Hash Table, Two Pointers"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="daily"
-                checked={formData.isDailyQuestion}
-                onChange={(e) => setFormData({ ...formData, isDailyQuestion: e.target.checked })}
-                className="w-4 h-4"
-              />
-              <Label htmlFor="daily" className="text-foreground cursor-pointer">
-                Mark as Daily Question
-              </Label>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={!formData.title || !formData.slug}>
-              Add Problem
+            <Button onClick={handleCreate} disabled={!formData.title || !formData.slug || createMutation.isPending}>
+              {createMutation.isPending ? 'Creating...' : 'Add Problem'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -535,6 +526,17 @@ export default function AdminProblemsPage() {
                 id="edit-title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                className="bg-background border-border"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-description" className="text-foreground">
+                Description
+              </Label>
+              <Textarea
+                id="edit-description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="bg-background border-border"
               />
             </div>
@@ -577,9 +579,7 @@ export default function AdminProblemsPage() {
                   <SelectContent>
                     <SelectItem value="LEETCODE">LeetCode</SelectItem>
                     <SelectItem value="CODEFORCES">Codeforces</SelectItem>
-                    <SelectItem value="ATCODER">AtCoder</SelectItem>
-                    <SelectItem value="CODECHEF">CodeChef</SelectItem>
-                    <SelectItem value="OTHER">Other</SelectItem>
+                    <SelectItem value="CUSTOM">Custom</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -608,8 +608,8 @@ export default function AdminProblemsPage() {
                 <Input
                   id="edit-acceptance"
                   type="number"
-                  value={formData.acceptanceRate}
-                  onChange={(e) => setFormData({ ...formData, acceptanceRate: parseFloat(e.target.value) || 0 })}
+                  value={formData.acceptanceRate || ''}
+                  onChange={(e) => setFormData({ ...formData, acceptanceRate: e.target.value ? parseFloat(e.target.value) : undefined })}
                   className="bg-background border-border"
                 />
               </div>
@@ -625,24 +625,14 @@ export default function AdminProblemsPage() {
                 className="bg-background border-border"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="edit-daily"
-                checked={formData.isDailyQuestion}
-                onChange={(e) => setFormData({ ...formData, isDailyQuestion: e.target.checked })}
-                className="w-4 h-4"
-              />
-              <Label htmlFor="edit-daily" className="text-foreground cursor-pointer">
-                Mark as Daily Question
-              </Label>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleEdit}>Save Changes</Button>
+            <Button onClick={handleEdit} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -660,8 +650,8 @@ export default function AdminProblemsPage() {
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -681,15 +671,15 @@ export default function AdminProblemsPage() {
               value={bulkData}
               onChange={(e) => setBulkData(e.target.value)}
               className="bg-background border-border min-h-[300px] font-mono text-sm"
-              placeholder={`[\n  {\n    "title": "Problem Name",\n    "slug": "problem-name",\n    "platform": "LEETCODE",\n    "difficulty": "MEDIUM",\n    "problemLink": "https://...",\n    "topics": ["Array", "DP"],\n    "acceptanceRate": 45.2,\n    "isDailyQuestion": false\n  }\n]`}
+              placeholder={`[\n  {\n    "title": "Problem Name",\n    "description": "Problem description",\n    "platform": "LEETCODE",\n    "difficulty": "MEDIUM",\n    "problemLink": "https://...",\n    "topics": ["Array", "DP"]\n  }\n]`}
             />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsBulkImportOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleBulkImport} disabled={!bulkData.trim()}>
-              Import
+            <Button onClick={handleBulkImport} disabled={!bulkData.trim() || bulkImportMutation.isPending}>
+              {bulkImportMutation.isPending ? 'Importing...' : 'Import'}
             </Button>
           </DialogFooter>
         </DialogContent>
