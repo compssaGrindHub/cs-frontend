@@ -133,6 +133,8 @@ export default function AdminAttendancePage() {
     mutationFn: markBulkAttendance,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance', 'session', selectedSessionId] });
+      queryClient.invalidateQueries({ queryKey: ['userAttendance'] });
+      queryClient.invalidateQueries({ queryKey: ['attendanceStats'] });
       queryClient.refetchQueries({ queryKey: ['attendance', 'session', selectedSessionId] });
       setHasChanges(false);
     },

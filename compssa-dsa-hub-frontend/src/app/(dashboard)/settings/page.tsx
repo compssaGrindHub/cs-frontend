@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
+import { useSearchParams } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/lib/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -21,7 +24,21 @@ import {
   Sun,
   Monitor,
   Trash2,
+  ExternalLink,
 } from 'lucide-react';
+import { updateUser, getCurrentUser } from '@/lib/api';
+import { changePassword } from '@/lib/api/auth';
+import { connectGitHub } from '@/lib/api/github';
+import { toast } from 'sonner';
+import { Loading } from '@/components/common/Loading';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 type SettingsTab = 'profile' | 'account' | 'integrations' | 'notifications' | 'appearance';
 
@@ -46,12 +63,32 @@ const accentOptions: { id: AccentId; label: string; primary: string; foreground:
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const searchParams = useSearchParams();
+  const { user: currentUser, setUser } = useAuthStore();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
-  const [displayName, setDisplayName] = useState('Alexander Mitchell');
-  const [username, setUsername] = useState('alexdev');
-  const [bio, setBio] = useState(
-    'CS Student @ Stanford. Passionate about algorithms and distributed systems. Grinding for FAANG.'
-  );
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [showGithubDialog, setShowGithubDialog] = useState(false);
+  
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [profilePicture, setProfilePicture] = useState('');
+  const [codeforcesHandle, setCodeforcesHandle] = useState('');
+  const [leetcodeUsername, setLeetcodeUsername] = useState('');
+  const [githubUsername, setGithubUsername] = useState('');
+  const [githubRepo, setGithubRepo] = useState('');
+  const [githubToken, setGithubToken] = useState('');
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') as SettingsTab;
+    if (tab && ['profile', 'account', 'integrations', 'notifications', 'appearance'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const [notifications, setNotifications] = useState({
     dailyChallenge: true,
@@ -61,6 +98,120 @@ export default function SettingsPage() {
 
   const [accent, setAccent] = useState<AccentId>('blue');
 
+  const { data: userData, isLoading: userLoading } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => getCurrentUser(),
+    enabled: !!currentUser,
+    onSuccess: (data) => {
+      if (data.data) {
+        const user = data.data;
+        setFirstName(user.firstName || '');
+        setLastName(user.lastName || '');
+        setProfilePicture(user.profilePicture || '');
+        setCodeforcesHandle(user.codeforcesHandle || '');
+        setLeetcodeUsername(user.leetcodeUsername || '');
+        setGithubUsername(user.githubUsername || '');
+        setGithubRepo(user.githubRepo || '');
+      }
+    },
+  });
+
+  const user = currentUser || userData?.data;
+
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: {
+      firstName?: string;
+      lastName?: string;
+      profilePicture?: string;
+      codeforcesHandle?: string;
+      leetcodeUsername?: string;
+    }) => updateUser(user!.id, data),
+    onSuccess: (updatedUser) => {
+      setUser(updatedUser);
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      toast.success('Profile updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to update profile');
+    },
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: (data: { currentPassword: string; newPassword: string }) => changePassword(data),
+    onSuccess: () => {
+      toast.success('Password changed successfully');
+      setShowPasswordDialog(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to change password');
+    },
+  });
+
+  const connectGithubMutation = useMutation({
+    mutationFn: (data: { token: string; repo?: string }) => connectGitHub(data),
+    onSuccess: (response) => {
+      toast.success(`GitHub connected successfully! Repository: ${response.data.repo}`);
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      setShowGithubDialog(false);
+      setGithubToken('');
+      if (user) {
+        getCurrentUser().then((result) => {
+          if (result.data) {
+            setUser(result.data);
+            setGithubUsername(result.data.githubUsername || '');
+            setGithubRepo(result.data.githubRepo || '');
+          }
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to connect GitHub account');
+    },
+  });
+
+  const handleSaveProfile = () => {
+    if (!user) return;
+
+    const updateData: any = {};
+    if (firstName !== (user.firstName || '')) updateData.firstName = firstName || undefined;
+    if (lastName !== (user.lastName || '')) updateData.lastName = lastName || undefined;
+    if (profilePicture !== (user.profilePicture || '')) updateData.profilePicture = profilePicture || undefined;
+    if (codeforcesHandle !== (user.codeforcesHandle || '')) updateData.codeforcesHandle = codeforcesHandle || undefined;
+    if (leetcodeUsername !== (user.leetcodeUsername || '')) updateData.leetcodeUsername = leetcodeUsername || undefined;
+
+    if (Object.keys(updateData).length === 0) {
+      toast.info('No changes to save');
+      return;
+    }
+
+    updateProfileMutation.mutate(updateData);
+  };
+
+  const handleChangePassword = () => {
+    if (!newPassword || !confirmPassword || !currentPassword) {
+      toast.error('Please fill in all password fields');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+
+    changePasswordMutation.mutate({
+      currentPassword,
+      newPassword,
+    });
+  };
+
   useEffect(() => {
     const selected = accentOptions.find((option) => option.id === accent) ?? accentOptions[0];
     const root = document.documentElement;
@@ -68,6 +219,20 @@ export default function SettingsPage() {
     root.style.setProperty('--primary-foreground', selected.foreground);
     root.style.setProperty('--ring', selected.ring ?? selected.primary);
   }, [accent]);
+
+  if (userLoading) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <Loading size="lg" label="Loading settings..." />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  const displayName = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.username;
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -118,13 +283,22 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-4 mb-6">
                       <Avatar className="w-20 h-20 border-2 border-primary">
                         <AvatarImage
-                          src="https://api.dicebear.com/7.x/avataaars/svg?seed=AlexDev"
+                          src={profilePicture || user.profilePicture || undefined}
                           alt="Avatar"
                         />
-                        <AvatarFallback className="bg-primary text-primary-foreground text-2xl">AM</AvatarFallback>
+                        <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                          {displayName[0]?.toUpperCase() || user.username[0]?.toUpperCase()}
+                        </AvatarFallback>
                       </Avatar>
                       <div>
-                        <Button variant="outline" className="mb-2">
+                        <Button 
+                          variant="outline" 
+                          className="mb-2"
+                          onClick={() => {
+                            const url = prompt('Enter profile picture URL:');
+                            if (url) setProfilePicture(url);
+                          }}
+                        >
                           <Upload className="w-4 h-4 mr-2" />
                           Change Avatar
                         </Button>
@@ -135,11 +309,22 @@ export default function SettingsPage() {
                     {/* Form Fields */}
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-foreground mb-2 block text-sm">Display Name</Label>
+                        <Label className="text-foreground mb-2 block text-sm">First Name</Label>
                         <Input
-                          value={displayName}
-                          onChange={(e) => setDisplayName(e.target.value)}
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
                           className="bg-muted border-border text-foreground"
+                          placeholder="First name"
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-foreground mb-2 block text-sm">Last Name</Label>
+                        <Input
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          className="bg-muted border-border text-foreground"
+                          placeholder="Last name"
                         />
                       </div>
 
@@ -148,27 +333,21 @@ export default function SettingsPage() {
                         <div className="flex items-center gap-2">
                           <span className="text-primary font-semibold">@</span>
                           <Input
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            className="bg-muted border-border text-foreground"
+                            value={user.username}
+                            disabled
+                            className="bg-muted border-border text-muted-foreground"
                           />
                         </div>
-                      </div>
-
-                      <div>
-                        <Label className="text-foreground mb-2 block text-sm">Bio</Label>
-                        <Textarea
-                          value={bio}
-                          onChange={(e) => setBio(e.target.value)}
-                          className="bg-muted border-border text-foreground resize-none"
-                          rows={4}
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Brief description for your profile. URLs are hyperlinked.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Username cannot be changed</p>
                       </div>
                     </div>
 
-                    <Button className="mt-6 bg-primary hover:bg-primary/90 text-primary-foreground">
-                      Save Changes
+                    <Button 
+                      className="mt-6 bg-primary hover:bg-primary/90 text-primary-foreground"
+                      onClick={handleSaveProfile}
+                      disabled={updateProfileMutation.isPending}
+                    >
+                      {updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}
                     </Button>
                   </CardContent>
                 </Card>
@@ -190,12 +369,27 @@ export default function SettingsPage() {
                           </div>
                           <div>
                             <p className="text-foreground font-medium">LeetCode</p>
-                            <p className="text-xs text-muted-foreground">Connected as alex_mitchell_99</p>
+                            <p className="text-xs text-muted-foreground">
+                              {leetcodeUsername ? `Connected as ${leetcodeUsername}` : 'Not connected'}
+                            </p>
                           </div>
                         </div>
-                        <Button variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10">
-                          Disconnect
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={leetcodeUsername}
+                            onChange={(e) => setLeetcodeUsername(e.target.value)}
+                            placeholder="LeetCode username"
+                            className="w-40 bg-muted border-border text-foreground"
+                          />
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={handleSaveProfile}
+                            disabled={updateProfileMutation.isPending}
+                          >
+                            {leetcodeUsername ? 'Update' : 'Connect'}
+                          </Button>
+                        </div>
                       </div>
 
                       {/* Codeforces */}
@@ -206,12 +400,27 @@ export default function SettingsPage() {
                           </div>
                           <div>
                             <p className="text-foreground font-medium">Codeforces</p>
-                            <p className="text-xs text-muted-foreground">Not connected</p>
+                            <p className="text-xs text-muted-foreground">
+                              {codeforcesHandle ? `Connected as ${codeforcesHandle}` : 'Not connected'}
+                            </p>
                           </div>
                         </div>
-                        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                          Connect
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={codeforcesHandle}
+                            onChange={(e) => setCodeforcesHandle(e.target.value)}
+                            placeholder="Codeforces handle"
+                            className="w-40 bg-muted border-border text-foreground"
+                          />
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={handleSaveProfile}
+                            disabled={updateProfileMutation.isPending}
+                          >
+                            {codeforcesHandle ? 'Update' : 'Connect'}
+                          </Button>
+                        </div>
                       </div>
 
                       {/* GitHub */}
@@ -222,11 +431,23 @@ export default function SettingsPage() {
                           </div>
                           <div>
                             <p className="text-foreground font-medium">GitHub</p>
-                            <p className="text-xs text-muted-foreground">Connected as alexdev</p>
+                            <p className="text-xs text-muted-foreground">
+                              {githubUsername ? `Connected as ${githubUsername}` : 'Not connected'}
+                            </p>
+                            {githubRepo && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Repository: {githubRepo}
+                              </p>
+                            )}
                           </div>
                         </div>
-                        <Button variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10">
-                          Disconnect
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setShowGithubDialog(true)}
+                          disabled={connectGithubMutation.isPending}
+                        >
+                          {githubUsername ? 'Reconnect' : 'Connect'}
                         </Button>
                       </div>
                     </div>
@@ -494,6 +715,192 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Password Change Dialog */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Change Password</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Enter your current password and choose a new one.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label className="text-foreground mb-2 block text-sm">Current Password</Label>
+              <Input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="bg-muted border-border text-foreground"
+                placeholder="Enter current password"
+              />
+            </div>
+            <div>
+              <Label className="text-foreground mb-2 block text-sm">New Password</Label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="bg-muted border-border text-foreground"
+                placeholder="Enter new password"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Must be at least 8 characters with uppercase, lowercase, and number
+              </p>
+            </div>
+            <div>
+              <Label className="text-foreground mb-2 block text-sm">Confirm New Password</Label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="bg-muted border-border text-foreground"
+                placeholder="Confirm new password"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPasswordDialog(false);
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+              }}
+              className="border-border text-foreground"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleChangePassword}
+              disabled={changePasswordMutation.isPending}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              {changePasswordMutation.isPending ? 'Changing...' : 'Change Password'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* GitHub PAT Connection Dialog */}
+      <Dialog open={showGithubDialog} onOpenChange={setShowGithubDialog}>
+        <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Connect GitHub Account</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Connect your GitHub account using a Personal Access Token (PAT) to automatically push your accepted solutions.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Instructions */}
+            <Card className="bg-blue-500/10 border-blue-500/20">
+              <CardContent className="p-4">
+                <h3 className="text-sm font-semibold text-foreground mb-3">How to get your GitHub Personal Access Token:</h3>
+                <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
+                  <li>
+                    Go to{' '}
+                    <a
+                      href="https://github.com/settings/tokens"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </li>
+                  <li>Click "Generate new token" → "Generate new token (classic)"</li>
+                  <li>Give your token a descriptive name (e.g., "CS Hub Solutions")</li>
+                  <li>Select expiration (recommended: 90 days or custom)</li>
+                  <li>
+                    <strong>Check the following scopes:</strong>
+                    <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
+                      <li><code className="bg-muted px-1 rounded">repo</code> - Full control of private repositories</li>
+                      <li><code className="bg-muted px-1 rounded">workflow</code> - Update GitHub Action workflows</li>
+                    </ul>
+                  </li>
+                  <li>Click "Generate token" at the bottom</li>
+                  <li>
+                    <strong>Copy the token immediately</strong> - you won't be able to see it again!
+                  </li>
+                </ol>
+              </CardContent>
+            </Card>
+
+            {/* Token Input */}
+            <div className="space-y-4">
+              <div>
+                <Label className="text-foreground mb-2 block text-sm">Personal Access Token</Label>
+                <Input
+                  type="password"
+                  value={githubToken}
+                  onChange={(e) => setGithubToken(e.target.value)}
+                  className="bg-muted border-border text-foreground font-mono text-sm"
+                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Your token starts with "ghp_" and is 40+ characters long
+                </p>
+              </div>
+
+              <div>
+                <Label className="text-foreground mb-2 block text-sm">Repository Name (Optional)</Label>
+                <Input
+                  value={githubRepo}
+                  onChange={(e) => setGithubRepo(e.target.value)}
+                  className="bg-muted border-border text-foreground"
+                  placeholder="cs-hub-solutions"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Leave empty to use default: "cs-hub-solutions". Repository will be created automatically if it doesn't exist.
+                </p>
+              </div>
+            </div>
+
+            {/* Security Note */}
+            <Card className="bg-yellow-500/10 border-yellow-500/20">
+              <CardContent className="p-4">
+                <p className="text-sm text-foreground">
+                  <strong>Security Note:</strong> Your token is stored securely and only used to push your accepted solutions to GitHub. 
+                  Never share your token with anyone. You can revoke it anytime from GitHub settings.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowGithubDialog(false);
+                setGithubToken('');
+              }}
+              className="border-border text-foreground"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!githubToken.trim()) {
+                  toast.error('Please enter your GitHub Personal Access Token');
+                  return;
+                }
+                connectGithubMutation.mutate({
+                  token: githubToken.trim(),
+                  repo: githubRepo.trim() || undefined,
+                });
+              }}
+              disabled={connectGithubMutation.isPending || !githubToken.trim()}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              {connectGithubMutation.isPending ? 'Connecting...' : 'Connect GitHub'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,17 +1,19 @@
 "use client";
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { CalendarDays, Clock3, MapPin, Users } from 'lucide-react';
-import { mockSessions, Session, SessionType } from '@/lib/mock/sessions';
+import { getSessions, Session, SessionType } from '@/lib/api/sessions';
 import { cn } from '@/lib/utils';
 import EmptyState from '@/components/common/EmptyState';
 import { Pagination } from '@/components/common/Pagination';
+import { Loading } from '@/components/common/Loading';
 
 const sessionTypeColors: Record<SessionType, string> = {
   LECTURE: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200',
@@ -54,9 +56,14 @@ function SessionCard({ session }: { session: Session }) {
         </div>
 
         <div className="mt-auto flex items-center justify-between pt-2">
-          {session.capacity && (
-            <span className="text-xs text-muted-foreground">Capacity: {session.capacity}</span>
-          )}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {session.capacity && (
+              <span>Capacity: {session.capacity}</span>
+            )}
+            {session.attendances && session.attendances.length > 0 && (
+              <span>• {session.attendances.length} attendees</span>
+            )}
+          </div>
           <Link href={`/sessions/${session.id}`} className="ml-auto">
             <Button size="sm" variant="ghost" className="text-primary hover:text-primary">View details</Button>
           </Link>
@@ -73,19 +80,29 @@ export default function SessionsPage() {
   const [page, setPage] = useState(1);
   const pageSize = 6;
 
-  const filtered = useMemo(() => {
-    const now = new Date();
-    return mockSessions.filter((s) => {
-      const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase());
-      const matchesType = type === 'ALL' ? true : s.type === type;
-      const matchesUpcoming = upcomingOnly ? new Date(s.date) >= now : true;
-      return matchesSearch && matchesType && matchesUpcoming;
-    });
-  }, [search, type, upcomingOnly]);
+  const apiParams = {
+    page,
+    limit: pageSize,
+    type: type !== 'ALL' ? type : undefined,
+    upcoming: upcomingOnly || undefined,
+  };
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const paged = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const { data: sessionsData, isLoading } = useQuery({
+    queryKey: ['sessions', apiParams],
+    queryFn: () => getSessions(apiParams),
+  });
+
+  const sessions = sessionsData?.data || [];
+  const meta = sessionsData?.meta;
+
+  const filtered = sessions.filter((s) => {
+    if (!search) return true;
+    return s.name.toLowerCase().includes(search.toLowerCase());
+  });
+
+  useEffect(() => {
+    setPage(1);
+  }, [type, upcomingOnly]);
 
   return (
     <div className="min-h-screen bg-background text-foreground p-6">
@@ -138,7 +155,9 @@ export default function SessionsPage() {
           </Card>
         </div>
 
-        {paged.length === 0 ? (
+        {isLoading ? (
+          <Loading size="lg" label="Loading sessions..." />
+        ) : filtered.length === 0 ? (
           <EmptyState
             title="No sessions found"
             description="Try adjusting filters or check back later for new sessions."
@@ -147,13 +166,15 @@ export default function SessionsPage() {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
-              {paged.map((session) => (
+              {filtered.map((session) => (
                 <SessionCard key={session.id} session={session} />
               ))}
             </div>
-            <div className="flex justify-center">
-              <Pagination page={currentPage} pageCount={totalPages} onPageChange={setPage} />
-            </div>
+            {meta && meta.totalPages > 1 && (
+              <div className="flex justify-center">
+                <Pagination page={meta.page} pageCount={meta.totalPages} onPageChange={setPage} />
+              </div>
+            )}
           </>
         )}
       </div>

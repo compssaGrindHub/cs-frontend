@@ -46,29 +46,29 @@ interface PaginatedContestsResponse {
  * Get all contests with filters
  * GET /api/contests
  */
-export const getContests = async (params?: GetContestsParams): Promise<PaginatedContestsResponse & { success: boolean }> => {
-  const response = await apiClient.get<PaginatedContestsResponse & { success: boolean }>('/contests', { params });
-  return response.data;
+export const getContests = async (params?: GetContestsParams): Promise<PaginatedContestsResponse> => {
+  const response = await apiClient.get<ApiResponse<PaginatedContestsResponse>>('/contests', { params });
+  return response.data as PaginatedContestsResponse;
 };
 
 /**
  * Get upcoming contests
  * GET /api/contests/upcoming
  */
-export const getUpcomingContests = async (limit?: number): Promise<ApiResponse<Contest[]>> => {
+export const getUpcomingContests = async (limit?: number): Promise<Contest[]> => {
   const response = await apiClient.get<ApiResponse<Contest[]>>('/contests/upcoming', {
     params: { limit },
   });
-  return response.data;
+  return response.data.data;
 };
 
 /**
  * Get user contests
  * GET /api/contests/user/:userId
  */
-export const getUserContests = async (userId: string): Promise<ApiResponse<Contest[]>> => {
-  const response = await apiClient.get<ApiResponse<Contest[]>>(`/contests/user/${userId}`);
-  return response.data;
+export const getUserContests = async (userId: string): Promise<Contest[]> => {
+  const response = await apiClient.get<ApiResponse<any[]>>(`/contests/user/${userId}`);
+  return response.data.data.map((p: any) => p.contest || p);
 };
 
 /**
@@ -93,9 +93,9 @@ export const getContestStandings = async (id: string): Promise<ApiResponse<Stand
  * Register for contest
  * POST /api/contests/:id/register
  */
-export const registerForContest = async (id: string): Promise<ApiResponse<any>> => {
+export const registerForContest = async (id: string): Promise<any> => {
   const response = await apiClient.post<ApiResponse<any>>(`/contests/${id}/register`);
-  return response.data;
+  return response.data.data;
 };
 
 /**

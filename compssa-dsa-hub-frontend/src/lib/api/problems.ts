@@ -63,9 +63,9 @@ interface PaginatedProblemsResponse {
  * Get all problems with filters
  * GET /api/problems
  */
-export const getProblems = async (params?: GetProblemsParams): Promise<PaginatedProblemsResponse & { success: boolean }> => {
-  const response = await apiClient.get<PaginatedProblemsResponse & { success: boolean }>('/problems', { params });
-  return response.data;
+export const getProblems = async (params?: GetProblemsParams): Promise<PaginatedProblemsResponse> => {
+  const response = await apiClient.get<ApiResponse<PaginatedProblemsResponse>>('/problems', { params });
+  return response.data as PaginatedProblemsResponse;
 };
 
 /**

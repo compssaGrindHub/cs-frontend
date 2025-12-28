@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import {
   MessageSquare,
   Eye
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Loading } from '@/components/common/Loading';
 import { EmptyState } from '@/components/common/EmptyState';
 import { 
@@ -140,6 +141,7 @@ const languages = [
 ];
 
 export default function ProfilePage() {
+  const router = useRouter();
   const { user: currentUser, isAuthenticated, syncAuthState } = useAuthStore();
 
   // Sync auth state on mount to ensure user is available
@@ -255,14 +257,42 @@ export default function ProfilePage() {
   const isLoading = userLoading || statsLoading || rankLoading || activityLoading || progressLoading || achievementsLoading;
   
   // Extract data from API responses
-  const stats = userStats?.data;
-  const rank = rankData?.data?.rank || 0;
-  const activities = Array.isArray(activityData?.data) ? activityData.data : [];
-  const progress = progressData?.data?.topics || [];
-  const achievements = Array.isArray(achievementsData?.data) ? achievementsData.data : [];
+  const stats = userStats || null;
+  const rank = rankData?.rank || 0;
+  const activities = Array.isArray(activityData) ? activityData : [];
+  const progress = progressData?.topics || [];
+  const achievements = Array.isArray(achievementsData) ? achievementsData : [];
 
-  // Generate contribution data from submissions (simplified)
-  const contributionData = generateContributionData();
+  const contributionData = useMemo(() => {
+    if (!stats?.recentSubmissions || stats.recentSubmissions.length === 0) {
+      return generateContributionData();
+    }
+    
+    const data = [];
+    const submissionMap = new Map<string, number>();
+    
+    stats.recentSubmissions.forEach((sub: any) => {
+      const date = new Date(sub.submissionTime).toISOString().slice(0, 10);
+      submissionMap.set(date, (submissionMap.get(date) || 0) + 1);
+    });
+    
+    for (let week = 0; week < 52; week++) {
+      for (let day = 0; day < 7; day++) {
+        const date = new Date();
+        date.setDate(date.getDate() - (52 - week) * 7 - (7 - day));
+        const dateStr = date.toISOString().slice(0, 10);
+        const count = submissionMap.get(dateStr) || 0;
+        const level = Math.min(Math.floor(count / 3), 4);
+        data.push({
+          week,
+          day,
+          count,
+          level,
+        });
+      }
+    }
+    return data;
+  }, [stats?.recentSubmissions]);
 
   // Show loading state only if we have no user AND are still loading
   if (isLoading && !user) {
@@ -341,7 +371,10 @@ export default function ProfilePage() {
                   <Share2 className="w-4 h-4 mr-2" />
                   Share
                 </Button>
-                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
+                <Button 
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+                  onClick={() => router.push('/settings?tab=profile')}
+                >
                   <Edit3 className="w-4 h-4 mr-2" />
                   Edit Profile
                 </Button>
@@ -388,7 +421,9 @@ export default function ProfilePage() {
         <Card className="bg-card border-border shadow-sm">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Activity</h2>
-            <p className="text-xs text-muted-foreground mb-4">548 submissions in the last year</p>
+            <p className="text-xs text-muted-foreground mb-4">
+              {stats?.totalProblems ? `${stats.totalProblems} problems attempted` : 'No activity data'}
+            </p>
             
             {/* Contribution Graph */}
             <div className="overflow-x-auto">

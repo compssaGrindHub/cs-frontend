@@ -1,9 +1,14 @@
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
 import { notFound } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { CalendarDays, Clock3, MapPin, Users } from 'lucide-react';
-import { getSessionById, SessionType } from '@/lib/mock/sessions';
+import { getSessionById, SessionType } from '@/lib/api/sessions';
+import { getSessionAttendance } from '@/lib/api/attendance';
+import { Loading } from '@/components/common/Loading';
 import EmptyState from '@/components/common/EmptyState';
 import Link from 'next/link';
 
@@ -16,8 +21,26 @@ const sessionTypeColors: Record<SessionType, string> = {
 };
 
 export default function SessionDetailPage({ params }: { params: { id: string } }) {
-  const session = getSessionById(params.id);
-  if (!session) {
+  const { data: session, isLoading: sessionLoading, error: sessionError } = useQuery({
+    queryKey: ['session', params.id],
+    queryFn: () => getSessionById(params.id),
+  });
+
+  const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
+    queryKey: ['attendance', 'session', params.id],
+    queryFn: () => getSessionAttendance(params.id),
+    enabled: !!session,
+  });
+
+  if (sessionLoading) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <Loading size="lg" label="Loading session..." />
+      </div>
+    );
+  }
+
+  if (sessionError || !session) {
     return notFound();
   }
 
@@ -26,10 +49,11 @@ export default function SessionDetailPage({ params }: { params: { id: string } }
   const end = new Date(session.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const stats = {
-    registered: session.capacity ?? 0,
-    present: Math.round((session.capacity ?? 40) * 0.72),
+    registered: attendanceData?.total || session.attendances?.length || 0,
+    present: attendanceData?.present || session.attendances?.filter((a) => a.present).length || 0,
+    absent: attendanceData?.absent || session.attendances?.filter((a) => !a.present).length || 0,
   };
-  const attendanceRate = stats.registered ? Math.round((stats.present / stats.registered) * 100) : 0;
+  const attendanceRate = stats.registered > 0 ? Math.round((stats.present / stats.registered) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-background text-foreground p-6">
@@ -53,19 +77,19 @@ export default function SessionDetailPage({ params }: { params: { id: string } }
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="bg-card border-border shadow-sm">
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Registered</p>
+              <p className="text-xs text-muted-foreground">Total</p>
               <p className="text-2xl font-semibold">{stats.registered || '—'}</p>
             </CardContent>
           </Card>
           <Card className="bg-card border-border shadow-sm">
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Present (sample)</p>
+              <p className="text-xs text-muted-foreground">Present</p>
               <p className="text-2xl font-semibold">{stats.present}</p>
             </CardContent>
           </Card>
           <Card className="bg-card border-border shadow-sm">
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Attendance rate (sample)</p>
+              <p className="text-xs text-muted-foreground">Attendance rate</p>
               <p className="text-2xl font-semibold">{attendanceRate}%</p>
             </CardContent>
           </Card>

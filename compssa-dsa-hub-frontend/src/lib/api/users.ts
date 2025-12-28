@@ -72,28 +72,28 @@ export const deleteUser = async (id: string): Promise<void> => {
  * Get user statistics
  * GET /api/users/:id/stats
  */
-export const getUserStats = async (id: string): Promise<ApiResponse<UserStats>> => {
+export const getUserStats = async (id: string): Promise<UserStats> => {
   const response = await apiClient.get<ApiResponse<UserStats>>(`/users/${id}/stats`);
-  return response.data;
+  return response.data.data;
 };
 
 /**
  * Get user progress
  * GET /api/users/:id/progress
  */
-export const getUserProgress = async (id: string): Promise<ApiResponse<UserProgress>> => {
+export const getUserProgress = async (id: string): Promise<UserProgress> => {
   const response = await apiClient.get<ApiResponse<UserProgress>>(`/users/${id}/progress`);
-  return response.data;
+  return response.data.data;
 };
 
 /**
  * Get user activity
  * GET /api/users/:id/activity
  */
-export const getUserActivity = async (id: string, limit?: number): Promise<ApiResponse<UserActivity[]>> => {
+export const getUserActivity = async (id: string, limit?: number): Promise<UserActivity[]> => {
   const response = await apiClient.get<ApiResponse<UserActivity[]>>(`/users/${id}/activity`, {
     params: { limit },
   });
-  return response.data;
+  return response.data.data;
 };
 

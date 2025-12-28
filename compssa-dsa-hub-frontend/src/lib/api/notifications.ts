@@ -43,44 +43,50 @@ interface PaginatedNotificationsResponse {
  */
 export const getNotifications = async (
   params?: GetNotificationsParams
-): Promise<ApiResponse<PaginatedNotificationsResponse>> => {
-  const response = await apiClient.get<ApiResponse<PaginatedNotificationsResponse>>('/notifications', { params });
-  return response.data;
+): Promise<PaginatedNotificationsResponse> => {
+  const response = await apiClient.get<ApiResponse<{ data: Notification[]; meta: any }>>('/notifications', { params });
+  // Backend returns { success: true, data: [], meta: {} } directly
+  return {
+    data: response.data.data || [],
+    meta: response.data.meta || {
+      total: 0,
+      page: 1,
+      limit: 20,
+      totalPages: 0,
+    },
+  };
 };
 
 /**
  * Get unread notifications count
  * GET /api/notifications/unread-count
  */
-export const getUnreadCount = async (): Promise<ApiResponse<{ unreadCount: number }>> => {
+export const getUnreadCount = async (): Promise<number> => {
   const response = await apiClient.get<ApiResponse<{ unreadCount: number }>>('/notifications/unread-count');
-  return response.data;
+  return response.data.data?.unreadCount || 0;
 };
 
 /**
  * Mark notification as read
  * PUT /api/notifications/:id/read
  */
-export const markNotificationAsRead = async (id: string): Promise<ApiResponse<void>> => {
-  const response = await apiClient.put<ApiResponse<void>>(`/notifications/${id}/read`);
-  return response.data;
+export const markNotificationAsRead = async (id: string): Promise<void> => {
+  await apiClient.put<ApiResponse<void>>(`/notifications/${id}/read`);
 };
 
 /**
  * Mark all notifications as read
  * PUT /api/notifications/read-all
  */
-export const markAllNotificationsAsRead = async (): Promise<ApiResponse<void>> => {
-  const response = await apiClient.put<ApiResponse<void>>('/notifications/read-all');
-  return response.data;
+export const markAllNotificationsAsRead = async (): Promise<void> => {
+  await apiClient.put<ApiResponse<void>>('/notifications/read-all');
 };
 
 /**
  * Delete notification
  * DELETE /api/notifications/:id
  */
-export const deleteNotification = async (id: string): Promise<ApiResponse<void>> => {
-  const response = await apiClient.delete<ApiResponse<void>>(`/notifications/${id}`);
-  return response.data;
+export const deleteNotification = async (id: string): Promise<void> => {
+  await apiClient.delete<ApiResponse<void>>(`/notifications/${id}`);
 };
 

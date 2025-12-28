@@ -136,8 +136,8 @@ export const getTopicLeaderboard = async (topic: string, limit?: number): Promis
  * Get user rank
  * GET /api/leaderboard/user/:userId/rank
  */
-export const getUserRank = async (userId: string): Promise<ApiResponse<{ rank: number }>> => {
+export const getUserRank = async (userId: string): Promise<{ rank: number }> => {
   const response = await apiClient.get<ApiResponse<{ rank: number }>>(`/leaderboard/user/${userId}/rank`);
-  return response.data;
+  return response.data.data;
 };
 

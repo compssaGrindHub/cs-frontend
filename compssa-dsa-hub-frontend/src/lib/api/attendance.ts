@@ -84,18 +84,18 @@ export const markBulkAttendance = async (
 export const getUserAttendance = async (
   userId: string,
   params?: GetUserAttendanceParams
-): Promise<ApiResponse<Attendance[]>> => {
+): Promise<Attendance[]> => {
   const response = await apiClient.get<ApiResponse<Attendance[]>>(`/attendance/user/${userId}`, { params });
-  return response.data;
+  return response.data.data;
 };
 
 /**
  * Get attendance stats
  * GET /api/attendance/stats/:userId
  */
-export const getAttendanceStats = async (userId: string): Promise<ApiResponse<AttendanceStats>> => {
+export const getAttendanceStats = async (userId: string): Promise<AttendanceStats> => {
   const response = await apiClient.get<ApiResponse<AttendanceStats>>(`/attendance/stats/${userId}`);
-  return response.data;
+  return response.data.data;
 };
 
 export interface SessionAttendanceResponse {

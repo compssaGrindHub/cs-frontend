@@ -107,11 +107,22 @@ export const createSubmissionFromExtension = async (
 export const getUserSubmissions = async (
   userId: string,
   params?: GetUserSubmissionsParams
-): Promise<ApiResponse<PaginatedSubmissionsResponse>> => {
+): Promise<PaginatedSubmissionsResponse> => {
   const response = await apiClient.get<ApiResponse<PaginatedSubmissionsResponse>>(`/submissions/user/${userId}`, {
     params,
   });
-  return response.data;
+  // Backend returns { success: true, data: [], meta: {} } directly
+  return {
+    data: response.data.data || [],
+    meta: response.data.meta || {
+      total: 0,
+      page: 1,
+      limit: 20,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPrevPage: false,
+    },
+  };
 };
 
 /**

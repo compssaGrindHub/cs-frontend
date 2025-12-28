@@ -89,6 +89,44 @@ apiClient.interceptors.response.use(
       }
     }
 
+    if (error?.response?.status === 403 && originalRequest && !originalRequest._retry) {
+      const errorMessage = error?.response?.data?.error || '';
+      if (errorMessage.includes('Admin or Instructor access required') || errorMessage.includes('Instructor access required')) {
+        originalRequest._retry = true;
+
+        try {
+          const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
+          if (!refreshToken) {
+            throw new Error('No refresh token');
+          }
+
+          const response = await axios.post(`${API_URL}/auth/refresh-token`, {
+            refreshToken,
+          });
+
+          const apiResponse = response.data;
+          let accessToken: string | null = null;
+          if (apiResponse.success && apiResponse.data) {
+            const { accessToken: newAccessToken, refreshToken: newRefreshToken } = apiResponse.data;
+            accessToken = newAccessToken;
+            localStorage.setItem('accessToken', newAccessToken);
+            if (newRefreshToken) {
+              localStorage.setItem('refreshToken', newRefreshToken);
+            }
+          } else {
+            throw new Error('Invalid refresh token response');
+          }
+
+          if (accessToken) {
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+          }
+          return apiClient(originalRequest);
+        } catch (refreshError) {
+          return Promise.reject(refreshError);
+        }
+      }
+    }
+
     return Promise.reject(error);
   }
 );
