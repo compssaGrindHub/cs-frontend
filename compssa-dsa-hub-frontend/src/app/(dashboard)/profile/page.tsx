@@ -270,25 +270,37 @@ export default function ProfilePage() {
   const minutesSpent = totalMinutesSpent % 60;
 
   const contributionData = useMemo(() => {
-    if (!stats?.recentSubmissions || stats.recentSubmissions.length === 0) {
+    // Use activity data if available (has more history), otherwise use recent submissions
+    const submissionsToUse = activities.length > 0 
+      ? activities.map((a: any) => ({ submissionTime: a.date }))
+      : (stats?.recentSubmissions || []);
+    
+    if (submissionsToUse.length === 0) {
       return generateContributionData();
     }
     
     const data = [];
     const submissionMap = new Map<string, number>();
     
-    stats.recentSubmissions.forEach((sub: any) => {
-      const date = new Date(sub.submissionTime).toISOString().slice(0, 10);
+    submissionsToUse.forEach((sub: any) => {
+      const date = new Date(sub.submissionTime || sub.date).toISOString().slice(0, 10);
       submissionMap.set(date, (submissionMap.get(date) || 0) + 1);
     });
     
+    // Generate 52 weeks of data (last year)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     for (let week = 0; week < 52; week++) {
       for (let day = 0; day < 7; day++) {
-        const date = new Date();
-        date.setDate(date.getDate() - (52 - week) * 7 - (7 - day));
+        const date = new Date(today);
+        // Calculate days ago: (51 - week) * 7 + (6 - day)
+        const daysAgo = (51 - week) * 7 + (6 - day);
+        date.setDate(date.getDate() - daysAgo);
         const dateStr = date.toISOString().slice(0, 10);
         const count = submissionMap.get(dateStr) || 0;
-        const level = Math.min(Math.floor(count / 3), 4);
+        // Level 0 = no activity, 1-4 based on count (1-3 = level 1, 4-6 = level 2, etc.)
+        const level = count === 0 ? 0 : Math.min(Math.floor(count / 3) + 1, 4);
         data.push({
           week,
           day,
@@ -298,7 +310,7 @@ export default function ProfilePage() {
       }
     }
     return data;
-  }, [stats?.recentSubmissions]);
+  }, [stats?.recentSubmissions, activities]);
 
   // Show loading state only if we have no user AND are still loading
   if (isLoading && !user) {

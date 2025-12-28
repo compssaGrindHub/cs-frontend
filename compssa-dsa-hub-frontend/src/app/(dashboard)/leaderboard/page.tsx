@@ -115,17 +115,38 @@ export default function LeaderboardPage() {
   // Fetch leaderboard data
   const { data: leaderboardData, isLoading, error: leaderboardError } = useQuery({
     queryKey: ['globalLeaderboard', timeFilter, topicFilter, page],
-    queryFn: () => getGlobalLeaderboard({
-      page,
-      limit,
-      timeframe: timeFilter,
-      topic: topicFilter !== 'all' ? topicFilter : undefined,
-    }),
+    queryFn: async () => {
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        console.log('[Leaderboard] Fetching leaderboard with params:', {
+          page,
+          limit,
+          timeframe: timeFilter,
+          topic: topicFilter !== 'all' ? topicFilter : undefined,
+        });
+      }
+      const result = await getGlobalLeaderboard({
+        page,
+        limit,
+        timeframe: timeFilter,
+        topic: topicFilter !== 'all' ? topicFilter : undefined,
+      });
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        console.log('[Leaderboard] API response:', result);
+      }
+      return result;
+    },
     enabled: isAuthenticated,
     retry: 1,
     refetchOnWindowFocus: false,
   });
 
+  // Log errors in development
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && leaderboardError) {
+    console.error('[Leaderboard] Error fetching leaderboard:', leaderboardError);
+  }
+
+  // Extract leaderboard data - API returns { success: true, data: LeaderboardEntry[], meta: {...} }
+  // So data is directly an array, not nested
   const leaderboard = Array.isArray(leaderboardData?.data) ? leaderboardData.data : [];
   const meta = leaderboardData?.meta;
 
@@ -146,21 +167,11 @@ export default function LeaderboardPage() {
 
   // Show error state if API call failed
   if (leaderboardError && leaderboard.length === 0) {
-    const errorMessage = leaderboardError instanceof Error 
-      ? leaderboardError.message 
-      : 'Failed to load leaderboard data';
-    
-    const isNgrokError = errorMessage.includes('HTML instead of JSON') || errorMessage.includes('ngrok');
-    
     return (
       <div className="min-h-screen bg-background p-6">
         <EmptyState 
           title="Failed to load leaderboard" 
-          description={
-            isNgrokError 
-              ? "The API endpoint is returning an ngrok warning page. Please check your API configuration or try accessing the endpoint directly in your browser first."
-              : "There was an error loading the leaderboard data. Please try refreshing the page."
-          } 
+          description="There was an error loading the leaderboard data. Please try refreshing the page." 
         />
       </div>
     );

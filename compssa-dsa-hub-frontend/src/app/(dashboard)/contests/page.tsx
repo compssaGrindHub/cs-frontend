@@ -62,6 +62,9 @@ export default function ContestsPage() {
     queryKey: ['userContests', user?.id],
     queryFn: () => getUserContests(user!.id),
     enabled: !!user?.id,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    staleTime: 0, // Always consider stale to ensure fresh data
   });
 
   const { data: completedContestsData, isLoading: completedLoading } = useQuery({
@@ -84,39 +87,63 @@ export default function ContestsPage() {
       return registerForContest(contestId);
     },
     onSuccess: (_, contestId) => {
-      queryClient.invalidateQueries({ queryKey: ['userContests', user?.id] });
+      // Invalidate and refetch to get updated state
+      queryClient.invalidateQueries({ queryKey: ['userContests'] });
       queryClient.invalidateQueries({ queryKey: ['contests'] });
       queryClient.invalidateQueries({ queryKey: ['upcomingContests'] });
-      queryClient.refetchQueries({ queryKey: ['userContests', user?.id] });
+      queryClient.refetchQueries({ queryKey: ['userContests'] });
       queryClient.refetchQueries({ queryKey: ['upcomingContests'] });
       toast.success('Successfully registered for contest');
     },
     onError: (error: any, contestId) => {
+      const status = error.response?.status;
+      const errorMessage = error.response?.data?.error || 'Failed to register for contest';
+      
+      // Handle 409 (Conflict) - already registered
+      if (status === 409 || errorMessage.includes('already registered') || errorMessage.includes('Already registered')) {
+        // User is already registered, just refresh the data and show success
+        setOptimisticallyRegistered((prev) => new Set(prev).add(contestId));
+        queryClient.invalidateQueries({ queryKey: ['userContests'] });
+        queryClient.refetchQueries({ queryKey: ['userContests'] });
+        toast.success('You are already registered for this contest');
+        return;
+      }
+      
+      // For other errors, remove from optimistic set and show error
       setOptimisticallyRegistered((prev) => {
         const next = new Set(prev);
         next.delete(contestId);
         return next;
       });
-      const errorMessage = error.response?.data?.error || 'Failed to register for contest';
-      if (errorMessage.includes('already registered') || errorMessage.includes('Already registered')) {
-        setOptimisticallyRegistered((prev) => new Set(prev).add(contestId));
-        queryClient.invalidateQueries({ queryKey: ['userContests', user?.id] });
-        queryClient.refetchQueries({ queryKey: ['userContests', user?.id] });
-      }
       toast.error(errorMessage);
     },
   });
 
   const featuredContest = featuredContestData?.[0];
   const upcomingContests = upcomingContestsData?.data || [];
-  const myContests = myContestsData?.data || [];
+  // getUserContests returns Contest[] directly (not wrapped in data)
+  const myContests = Array.isArray(myContestsData) ? myContestsData : [];
   const completedContests = completedContestsData?.data || [];
 
   const registeredContestIds = useMemo(() => {
-    const ids = new Set(myContests.map((c: Contest) => c.id));
+    const ids = new Set<string>();
+    // Add contests from API response
+    myContests.forEach((c: Contest) => {
+      if (c && c.id) {
+        ids.add(c.id);
+      }
+    });
+    // Add optimistically registered (for immediate UI feedback)
     optimisticallyRegistered.forEach((id) => ids.add(id));
     return ids;
   }, [myContests, optimisticallyRegistered]);
+
+  // Refetch user contests on mount to ensure we have latest registration status
+  useEffect(() => {
+    if (user?.id) {
+      queryClient.refetchQueries({ queryKey: ['userContests', user.id] });
+    }
+  }, [user?.id, queryClient]);
 
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 

@@ -705,7 +705,7 @@ export default function SettingsPage() {
                 <h2 className="text-lg font-semibold text-red-500 mb-2">Danger Zone</h2>
                 <p className="text-sm text-muted-foreground mb-4">Irreversible actions for your account.</p>
 
-                <Button className="border border-destructive/50 text-destructive hover:bg-destructive/10 gap-2">
+                <Button variant="destructive" className="bg-destructive hover:bg-destructive/90 gap-2">
                   <Trash2 className="w-4 h-4" />
                   Delete Account
                 </Button>

@@ -68,7 +68,15 @@ export const getUpcomingContests = async (limit?: number): Promise<Contest[]> =>
  */
 export const getUserContests = async (userId: string): Promise<Contest[]> => {
   const response = await apiClient.get<ApiResponse<any[]>>(`/contests/user/${userId}`);
-  return response.data.data.map((p: any) => p.contest || p);
+  // Backend returns participations with contest nested, extract contest objects
+  return response.data.data.map((p: any) => {
+    // If it's a participation object with nested contest, extract the contest
+    if (p.contest && typeof p.contest === 'object') {
+      return p.contest;
+    }
+    // If it's already a contest object, return as is
+    return p;
+  });
 };
 
 /**
