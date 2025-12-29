@@ -47,14 +47,14 @@ export interface UserStats {
 export interface UserProgress {
   topics: Array<{
     name: string;
-    solved: number;
-    total: number;
-    percentage: number;
-    difficulty: {
-      easy: number;
-      medium: number;
-      hard: number;
-    };
+  solved: number;
+  total: number;
+  percentage: number;
+  difficulty: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
   }>;
 }
 

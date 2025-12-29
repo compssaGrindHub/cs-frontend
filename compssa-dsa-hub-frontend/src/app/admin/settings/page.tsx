@@ -13,11 +13,9 @@ import { Label } from '@/components/ui/label';
 import {
   User,
   Lock,
-  Zap,
   Bell,
   Palette,
   Upload,
-  Unlink,
   Moon,
   Sun,
   Monitor,
@@ -27,7 +25,6 @@ import {
 const settingsTabs = [
   { id: 'profile', name: 'Profile', icon: <User className="w-4 h-4" /> },
   { id: 'account', name: 'Account', icon: <Lock className="w-4 h-4" /> },
-  { id: 'integrations', name: 'Integrations', icon: <Zap className="w-4 h-4" /> },
   { id: 'notifications', name: 'Notifications', icon: <Bell className="w-4 h-4" /> },
   { id: 'appearance', name: 'Appearance', icon: <Palette className="w-4 h-4" /> },
 ];
@@ -182,55 +179,6 @@ export default function AdminSettingsPage() {
                   </div>
                 </CardContent>
               </Card>
-            )}
-            {/* Integrations Tab */}
-            {activeTab === 'integrations' && (
-              <div className="space-y-6">
-                <Card className="bg-card border-border">
-                  <CardContent className="p-6">
-                    <h2 className="text-lg font-semibold text-foreground mb-4">Connected Platforms</h2>
-                    <p className="text-sm text-muted-foreground mb-6">Your connected coding platforms and services.</p>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded bg-yellow-500/20 flex items-center justify-center text-yellow-500 font-bold">L</div>
-                          <div>
-                            <p className="text-foreground font-medium">LeetCode</p>
-                            <p className="text-xs text-muted-foreground">Not connected</p>
-                          </div>
-                        </div>
-                        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                          Connect
-                        </Button>
-                      </div>
-                      <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded bg-blue-500/20 flex items-center justify-center text-blue-500 font-bold">CF</div>
-                          <div>
-                            <p className="text-foreground font-medium">Codeforces</p>
-                            <p className="text-xs text-muted-foreground">Not connected</p>
-                          </div>
-                        </div>
-                        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                          Connect
-                        </Button>
-                      </div>
-                      <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded bg-gray-600/20 flex items-center justify-center text-gray-300 font-bold">GH</div>
-                          <div>
-                            <p className="text-foreground font-medium">GitHub</p>
-                            <p className="text-xs text-muted-foreground">Not connected</p>
-                          </div>
-                        </div>
-                        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                          Connect
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
             )}
             {/* Notifications Tab */}
             {activeTab === 'notifications' && (

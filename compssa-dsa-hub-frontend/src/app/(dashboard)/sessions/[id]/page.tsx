@@ -1,5 +1,6 @@
 'use client';
 
+import { use } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { notFound } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,7 @@ import { getSessionAttendance } from '@/lib/api/attendance';
 import { Loading } from '@/components/common/Loading';
 import EmptyState from '@/components/common/EmptyState';
 import Link from 'next/link';
+import { useAuthStore } from '@/lib/stores/authStore';
 
 const sessionTypeColors: Record<SessionType, string> = {
   LECTURE: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200',
@@ -20,16 +22,20 @@ const sessionTypeColors: Record<SessionType, string> = {
   OTHER: 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200',
 };
 
-export default function SessionDetailPage({ params }: { params: { id: string } }) {
+export default function SessionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const { user } = useAuthStore();
+  const isAdminOrInstructor = user?.role === 'ADMIN' || user?.role === 'INSTRUCTOR';
+  
   const { data: session, isLoading: sessionLoading, error: sessionError } = useQuery({
-    queryKey: ['session', params.id],
-    queryFn: () => getSessionById(params.id),
+    queryKey: ['session', id],
+    queryFn: () => getSessionById(id),
   });
 
   const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
-    queryKey: ['attendance', 'session', params.id],
-    queryFn: () => getSessionAttendance(params.id),
-    enabled: !!session,
+    queryKey: ['attendance', 'session', id],
+    queryFn: () => getSessionAttendance(id),
+    enabled: !!session && isAdminOrInstructor,
   });
 
   if (sessionLoading) {
@@ -48,10 +54,15 @@ export default function SessionDetailPage({ params }: { params: { id: string } }
   const start = new Date(session.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const end = new Date(session.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  const stats = {
+  // Only calculate stats if user has access to attendance data
+  const stats = isAdminOrInstructor ? {
     registered: attendanceData?.total || session.attendances?.length || 0,
     present: attendanceData?.present || session.attendances?.filter((a) => a.present).length || 0,
     absent: attendanceData?.absent || session.attendances?.filter((a) => !a.present).length || 0,
+  } : {
+    registered: 0,
+    present: 0,
+    absent: 0,
   };
   const attendanceRate = stats.registered > 0 ? Math.round((stats.present / stats.registered) * 100) : 0;
 
@@ -69,31 +80,35 @@ export default function SessionDetailPage({ params }: { params: { id: string } }
               {session.instructor && <span className="inline-flex items-center gap-1"><Users className="w-4 h-4" /> {session.instructor}</span>}
             </div>
           </div>
-          <Link href="/attendance" className="ml-auto">
-            <Button variant="outline">View attendance</Button>
-          </Link>
+          {isAdminOrInstructor && (
+            <Link href="/attendance" className="ml-auto">
+              <Button variant="outline">View attendance</Button>
+            </Link>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-card border-border shadow-sm">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Total</p>
-              <p className="text-2xl font-semibold">{stats.registered || '—'}</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border shadow-sm">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Present</p>
-              <p className="text-2xl font-semibold">{stats.present}</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border shadow-sm">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Attendance rate</p>
-              <p className="text-2xl font-semibold">{attendanceRate}%</p>
-            </CardContent>
-          </Card>
-        </div>
+        {isAdminOrInstructor && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="bg-card border-border shadow-sm">
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="text-2xl font-semibold">{stats.registered || '—'}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-card border-border shadow-sm">
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Present</p>
+                <p className="text-2xl font-semibold">{stats.present}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-card border-border shadow-sm">
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Attendance rate</p>
+                <p className="text-2xl font-semibold">{attendanceRate}%</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <Card className="bg-card border-border shadow-sm">
           <CardContent className="p-6 space-y-4">

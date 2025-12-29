@@ -130,9 +130,9 @@ export default function DashboardPage() {
                 <div className="flex-1 space-y-4">
                   <div className="grid grid-cols-2 gap-6">
                     {/* Global Rank */}
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Global Rank</p>
-                      <div className="flex items-baseline gap-2">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Global Rank</p>
+                  <div className="flex items-baseline gap-2">
                         <h2 className="text-3xl font-bold text-foreground">#{userRank || '--'}</h2>
                         <span className="text-sm text-muted-foreground">users</span>
                       </div>
@@ -143,22 +143,22 @@ export default function DashboardPage() {
                       <div className="flex items-baseline gap-2">
                         <h2 className="text-3xl font-bold text-foreground">{totalRating.toLocaleString()}</h2>
                       </div>
-                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    {daily && (
-                      <Link href={`/problems/${daily.slug}`} className="flex-1">
-                        <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                          Start Daily Challenge
-                        </Button>
-                      </Link>
-                    )}
-                    <Link href="/profile" className="flex-1">
-                      <Button variant="outline" className="w-full">
-                        View Profile
+                </div>
+                <div className="flex gap-2">
+                  {daily && (
+                    <Link href={`/problems/${daily.slug}`} className="flex-1">
+                      <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                        Start Daily Challenge
                       </Button>
                     </Link>
-                  </div>
+                  )}
+                  <Link href="/profile" className="flex-1">
+                      <Button variant="outline" className="w-full">
+                      View Profile
+                    </Button>
+                  </Link>
+                </div>
                 </div>
               </div>
             </CardContent>

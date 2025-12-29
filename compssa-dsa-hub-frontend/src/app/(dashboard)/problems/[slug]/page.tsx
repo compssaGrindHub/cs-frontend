@@ -39,7 +39,8 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
   const { data: statsData } = useQuery({
     queryKey: ['problemStats', problem?.id],
     queryFn: async () => {
-      const result = await getProblemStats(problem!.id);
+      if (!problem?.id) throw new Error('Problem ID is required');
+      const result = await getProblemStats(problem.id);
       return result;
     },
     enabled: !!problem?.id,
@@ -50,14 +51,15 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
   const { data: submissionsData } = useQuery({
     queryKey: ['userSubmissions', user?.id, problem?.id],
     queryFn: async () => {
-      const result = await getUserSubmissions(user!.id, { problemId: problem!.id, limit: 10 });
+      if (!user?.id || !problem?.id) throw new Error('User ID and Problem ID are required');
+      const result = await getUserSubmissions(user.id, { problemId: problem.id, limit: 10 });
       return result;
     },
     enabled: !!user?.id && !!problem?.id,
     refetchOnWindowFocus: true,
   });
 
-  const submissions = submissionsData?.data || [];
+  const submissions = Array.isArray(submissionsData?.data) ? submissionsData.data : [];
 
   if (problemLoading) {
     return (
@@ -95,10 +97,12 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold text-foreground">{problem.title}</h1>
-              <Badge variant="outline" className={difficultyColors[problem.difficulty]}>
-                {problem.difficulty}
-              </Badge>
+              <h1 className="text-3xl font-bold text-foreground">{problem.title || 'Untitled Problem'}</h1>
+              {problem.difficulty && difficultyColors[problem.difficulty] && (
+                <Badge variant="outline" className={difficultyColors[problem.difficulty]}>
+                  {problem.difficulty}
+                </Badge>
+              )}
               {problem.isDailyQuestion && (
                 <Badge className="bg-purple-500/20 text-purple-400 border-0">
                   Daily Question
@@ -106,8 +110,8 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
               )}
             </div>
             <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-              <span>{problem.platform}</span>
-              {problem.acceptanceRate !== null && problem.acceptanceRate !== undefined && (
+              <span>{problem.platform || 'Unknown'}</span>
+              {problem.acceptanceRate !== null && problem.acceptanceRate !== undefined && !isNaN(problem.acceptanceRate) && (
                 <>
                   <span>•</span>
                   <span>Acceptance Rate: {problem.acceptanceRate.toFixed(1)}%</span>
@@ -121,7 +125,7 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {problem.topics.map((topic) => (
+              {Array.isArray(problem.topics) && problem.topics.length > 0 && problem.topics.map((topic) => (
                 <Badge key={topic} className="bg-blue-600/20 text-blue-400 border-0">
                   {topic}
                 </Badge>
@@ -129,12 +133,14 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link href={problem.problemLink} target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" className="border-border text-foreground">
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Open on {problem.platform}
-              </Button>
-            </Link>
+            {problem.problemLink && (
+              <Link href={problem.problemLink} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" className="border-border text-foreground">
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Open on {problem.platform || 'Platform'}
+                </Button>
+              </Link>
+            )}
             <Link href={`/problems/${slug}/submit`}>
               <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
                 <Code2 className="w-4 h-4 mr-2" />
@@ -153,7 +159,11 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
                 <h2 className="text-xl font-semibold text-foreground mb-4">Description</h2>
                 <div
                   className="prose prose-invert max-w-none text-foreground"
-                  dangerouslySetInnerHTML={{ __html: problem.description || 'No description available.' }}
+                  dangerouslySetInnerHTML={{ 
+                    __html: problem.description && typeof problem.description === 'string' 
+                      ? problem.description 
+                      : 'No description available.' 
+                  }}
                 />
               </CardContent>
             </Card>
@@ -171,6 +181,7 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
                   ) : (
                     <div className="space-y-3">
                       {submissions.map((submission: any) => {
+                        if (!submission || !submission.id) return null;
                         const StatusIcon =
                           submission.status === 'ACCEPTED'
                             ? CheckCircle2

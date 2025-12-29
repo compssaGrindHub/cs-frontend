@@ -65,7 +65,26 @@ interface PaginatedProblemsResponse {
  */
 export const getProblems = async (params?: GetProblemsParams): Promise<PaginatedProblemsResponse> => {
   const response = await apiClient.get<ApiResponse<PaginatedProblemsResponse>>('/problems', { params });
-  return response.data as PaginatedProblemsResponse;
+  // Handle both wrapped and unwrapped responses
+  if (response.data && 'data' in response.data && 'meta' in response.data) {
+    return response.data as PaginatedProblemsResponse;
+  }
+  // If response is wrapped in ApiResponse, extract the data
+  if (response.data && 'success' in response.data && response.data.success && 'data' in response.data) {
+    return (response.data as ApiResponse<PaginatedProblemsResponse>).data as PaginatedProblemsResponse;
+  }
+  // Fallback: return empty structure
+  return {
+    data: [],
+    meta: {
+      total: 0,
+      page: 1,
+      limit: 20,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPrevPage: false,
+    },
+  };
 };
 
 /**

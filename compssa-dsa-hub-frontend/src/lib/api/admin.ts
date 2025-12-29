@@ -145,3 +145,62 @@ export const getUsageTimeStats = async (params?: DateRangeParams): Promise<Usage
   return response.data.data as UsageTimeStats;
 };
 
+export interface TopicDistributionItem {
+  topic: string;
+  count: number;
+}
+
+export interface ProblemSolveRate {
+  solveRate: number;
+  total: number;
+  accepted: number;
+}
+
+export interface ContestParticipationRate {
+  participationRate: number;
+  totalUsers: number;
+  usersWithContests: number;
+}
+
+export interface EngagementChartItem {
+  date: string;
+  sessions: number;
+  avgDuration: number;
+}
+
+/**
+ * Get topic distribution (admin only)
+ * GET /api/admin/topics/distribution
+ */
+export const getTopicDistribution = async (): Promise<TopicDistributionItem[]> => {
+  const response = await apiClient.get<ApiResponse<TopicDistributionItem[]>>('/admin/topics/distribution');
+  return response.data.data as TopicDistributionItem[];
+};
+
+/**
+ * Get problem solve rate (admin only)
+ * GET /api/admin/problems/solve-rate
+ */
+export const getProblemSolveRate = async (params?: DateRangeParams): Promise<ProblemSolveRate> => {
+  const response = await apiClient.get<ApiResponse<ProblemSolveRate>>('/admin/problems/solve-rate', { params });
+  return response.data.data as ProblemSolveRate;
+};
+
+/**
+ * Get contest participation rate (admin only)
+ * GET /api/admin/contests/participation-rate
+ */
+export const getContestParticipationRate = async (params?: DateRangeParams): Promise<ContestParticipationRate> => {
+  const response = await apiClient.get<ApiResponse<ContestParticipationRate>>('/admin/contests/participation-rate', { params });
+  return response.data.data as ContestParticipationRate;
+};
+
+/**
+ * Get engagement chart data (admin only)
+ * GET /api/admin/engagement/chart
+ */
+export const getEngagementChart = async (params?: DateRangeParams): Promise<EngagementChartItem[]> => {
+  const response = await apiClient.get<ApiResponse<EngagementChartItem[]>>('/admin/engagement/chart', { params });
+  return response.data.data as EngagementChartItem[];
+};
+

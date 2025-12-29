@@ -263,7 +263,7 @@ export default function ProfilePage() {
   const activities = Array.isArray(activityData) ? activityData : [];
   const progress = progressData?.topics || [];
   const achievements = Array.isArray(achievementsData) ? achievementsData : [];
-  
+
   // Calculate time spent
   const totalMinutesSpent = stats?.totalMinutesSpent || 0;
   const hoursSpent = Math.floor(totalMinutesSpent / 60);

@@ -13,12 +13,15 @@ import {
   Users,
   BarChart3,
   ChevronLeft,
+  ChevronRight,
   Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useSidebar } from '@/contexts/SidebarContext';
 
 const adminNavItems = [
   {
@@ -66,55 +69,112 @@ const adminNavItems = [
 export default function AdminSidebar() {
   const pathname = usePathname();
   const { user } = useAuthStore();
+  const { isCollapsed, toggleSidebar } = useSidebar();
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-card/95 supports-[backdrop-filter]:bg-card/85 backdrop-blur border-r border-border/80 shadow-sm flex flex-col">
+    <aside className={cn(
+      "fixed left-0 top-0 h-screen bg-card/95 supports-[backdrop-filter]:bg-card/85 backdrop-blur border-r border-border/80 shadow-sm flex flex-col transition-all duration-300 z-40",
+      isCollapsed ? "w-20" : "w-64"
+    )}>
       {/* Logo */}
-      <div className="p-6 border-b border-border">
-        <Link href="/admin" className="flex items-center gap-3">
+      <div className={cn(
+        "border-b border-border flex items-center justify-between",
+        isCollapsed ? "p-4" : "p-6"
+      )}>
+        <Link href="/admin" className={cn(
+          "flex items-center gap-3",
+          isCollapsed && "justify-center w-full"
+        )}>
           <Image
             src="/assets/logo.png"
             alt="CompSSA"
             width={32}
             height={32}
-            className="w-8 h-8 object-contain"
+            className="w-8 h-8 object-contain flex-shrink-0"
           />
-          <div className="flex flex-col">
-            <span className="text-lg font-semibold text-foreground">CompSSA</span>
-            <span className="text-xs text-muted-foreground">Admin Panel</span>
-          </div>
+          {!isCollapsed && (
+            <div className="flex flex-col">
+              <span className="text-lg font-semibold text-foreground whitespace-nowrap">CompSSA</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Admin Panel</span>
+            </div>
+          )}
         </Link>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 hover:bg-foreground/10"
+          onClick={toggleSidebar}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </Button>
       </div>
 
       {/* Back to Dashboard */}
       <div className="px-3 pt-4 pb-2">
-        <Link href="/dashboard">
-          <Button variant="outline" size="sm" className="w-full justify-start gap-2">
-            <ChevronLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Button>
-        </Link>
+        {isCollapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link href="/dashboard">
+                <Button variant="outline" size="sm" className="w-full justify-center p-2">
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Back to Dashboard</p>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <Link href="/dashboard">
+            <Button variant="outline" size="sm" className="w-full justify-start gap-2">
+              <ChevronLeft className="w-4 h-4" />
+              Back to Dashboard
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {adminNavItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href + '/'));
           const Icon = item.icon;
+
+          const linkClassName = cn(
+            'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors',
+            isCollapsed ? 'justify-center px-3 py-2.5' : 'px-3 py-2.5',
+            isActive
+              ? 'bg-primary/20 text-primary'
+              : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
+          );
+
+          if (isCollapsed) {
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link href={item.href} className={linkClassName}>
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>{item.name}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
 
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-primary/20 text-primary'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
-              )}
+              className={linkClassName}
             >
-              <Icon className="w-4 h-4" />
-              {item.name}
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              <span className="whitespace-nowrap">{item.name}</span>
             </Link>
           );
         })}
@@ -122,38 +182,80 @@ export default function AdminSidebar() {
 
       {/* Settings */}
       <div className="px-3 pb-4 space-y-1">
-        <Link
-          href="/admin/settings"
-          className={cn(
-            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-            pathname === '/admin/settings'
-              ? 'bg-primary/20 text-primary'
-              : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
-          )}
-        >
-          <Settings className="w-4 h-4" />
-          Settings
-        </Link>
+        {isCollapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                href="/admin/settings"
+                className={cn(
+                  'flex items-center justify-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  pathname === '/admin/settings'
+                    ? 'bg-primary/20 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
+                )}
+              >
+                <Settings className="w-4 h-4" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Settings</p>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <Link
+            href="/admin/settings"
+            className={cn(
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+              pathname === '/admin/settings'
+                ? 'bg-primary/20 text-primary'
+                : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
+            )}
+          >
+            <Settings className="w-4 h-4" />
+            Settings
+          </Link>
+        )}
       </div>
 
       {/* User Profile */}
-      <div className="p-4 border-t border-border">
-        <Link href="/profile" className="flex items-center gap-3 group">
-          <Avatar className="w-10 h-10 border border-border">
-            <AvatarImage src={user?.profilePicture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username || 'admin'}`} alt={user?.username || 'Admin'} />
-            <AvatarFallback className="bg-primary text-primary-foreground">
-              {user?.username?.[0]?.toUpperCase() || 'A'}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">
-              {user?.username || 'Admin'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {user?.role || 'ADMIN'}
-            </p>
-          </div>
-        </Link>
+      <div className={cn("border-t border-border", isCollapsed ? "p-4" : "p-4")}>
+        {isCollapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link href="/profile" className="flex items-center justify-center">
+                <Avatar className="w-10 h-10 border border-border">
+                  <AvatarImage src={user?.profilePicture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username || 'admin'}`} alt={user?.username || 'Admin'} />
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    {user?.username?.[0]?.toUpperCase() || 'A'}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <div>
+                <p className="font-medium">{user?.username || 'Admin'}</p>
+                <p className="text-xs text-muted-foreground">{user?.role || 'ADMIN'}</p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <Link href="/profile" className="flex items-center gap-3 group">
+            <Avatar className="w-10 h-10 border border-border flex-shrink-0">
+              <AvatarImage src={user?.profilePicture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username || 'admin'}`} alt={user?.username || 'Admin'} />
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                {user?.username?.[0]?.toUpperCase() || 'A'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">
+                {user?.username || 'Admin'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {user?.role || 'ADMIN'}
+              </p>
+            </div>
+          </Link>
+        )}
       </div>
     </aside>
   );

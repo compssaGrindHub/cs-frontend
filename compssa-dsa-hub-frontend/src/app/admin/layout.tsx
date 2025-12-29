@@ -1,11 +1,104 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
 import AdminSidebar from '@/components/layout/AdminSidebar';
 import Header from '@/components/layout/Header';
 import { Loading } from '@/components/common/Loading';
+import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
+import { startActivitySession, pingActivity, endActivitySession } from '@/lib/api/activity';
+
+function AdminLayoutContent({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { isCollapsed } = useSidebar();
+  const { user } = useAuthStore();
+  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isSessionStartedRef = useRef(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Start session
+    const startSession = async () => {
+      try {
+        await startActivitySession();
+        isSessionStartedRef.current = true;
+      } catch (error) {
+        console.error('Failed to start activity session:', error);
+      }
+    };
+
+    startSession();
+
+    // Ping every 2 minutes to keep session alive
+    pingIntervalRef.current = setInterval(async () => {
+      if (isSessionStartedRef.current) {
+        try {
+          await pingActivity();
+        } catch (error) {
+          console.error('Failed to ping activity:', error);
+        }
+      }
+    }, 2 * 60 * 1000); // 2 minutes
+
+    // Cleanup on unmount
+    return () => {
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
+      }
+      // End session when leaving
+      if (isSessionStartedRef.current) {
+        endActivitySession().catch((error) => {
+          console.error('Failed to end activity session:', error);
+        });
+      }
+    };
+  }, [user?.id]);
+
+  // Handle page visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (!user?.id || !isSessionStartedRef.current) return;
+
+      if (document.hidden) {
+        // Page is hidden, end session
+        try {
+          await endActivitySession();
+          isSessionStartedRef.current = false;
+        } catch (error) {
+          console.error('Failed to end activity session:', error);
+        }
+      } else {
+        // Page is visible, start new session
+        try {
+          await startActivitySession();
+          isSessionStartedRef.current = true;
+        } catch (error) {
+          console.error('Failed to start activity session:', error);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user?.id]);
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <AdminSidebar />
+      <div className={isCollapsed ? 'ml-20 transition-all duration-300' : 'ml-64 transition-all duration-300'}>
+        <Header />
+        <main className="pt-16 p-8">{children}</main>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminLayout({
   children,
@@ -44,12 +137,8 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <AdminSidebar />
-      <div className="ml-64">
-        <Header />
-        <main className="pt-16 p-8">{children}</main>
-      </div>
-    </div>
+    <SidebarProvider>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </SidebarProvider>
   );
 }

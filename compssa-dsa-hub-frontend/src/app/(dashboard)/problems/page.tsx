@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { Search, List, LayoutGrid, CheckCircle2, XCircle, Clock } from 'lucide-react';
@@ -91,14 +91,20 @@ export default function ProblemsPage() {
     queryFn: () => getProblems(apiParams),
   });
 
-  const problems = problemsData?.data || [];
-  const meta = problemsData?.meta;
+  const problems = Array.isArray(problemsData?.data) ? problemsData.data : [];
+  const meta = problemsData?.meta || null;
 
   const allTopics = useMemo(() => {
     const topicSet = new Set<string>();
-    problems.forEach((p) => {
-      p.topics.forEach((t) => topicSet.add(t));
-    });
+    if (problems && Array.isArray(problems)) {
+      problems.forEach((p) => {
+        if (p && Array.isArray(p.topics)) {
+          p.topics.forEach((t) => {
+            if (t) topicSet.add(t);
+          });
+        }
+      });
+    }
     return Array.from(topicSet).sort();
   }, [problems]);
 
@@ -126,9 +132,28 @@ export default function ProblemsPage() {
     setPage(1);
   };
 
+  // Track previous filter values to reset page only when filters actually change
+  const prevFiltersRef = useRef<string>('');
+  
   useEffect(() => {
-    setPage(1);
-  }, [searchQuery, selectedDifficulty, selectedStatus, selectedPlatform, selectedTopics, sortBy]);
+    // Create a stable key from all filter values
+    const filtersKey = JSON.stringify({
+      searchQuery,
+      selectedDifficulty,
+      selectedStatus,
+      selectedPlatform,
+      sortBy,
+      selectedTopics: selectedTopics.sort()
+    });
+
+    // Only reset page if filters actually changed (not just on mount)
+    if (prevFiltersRef.current && prevFiltersRef.current !== filtersKey) {
+      setPage(1);
+    }
+
+    prevFiltersRef.current = filtersKey;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, selectedDifficulty, selectedStatus, selectedPlatform, sortBy, selectedTopics.length, selectedTopics.join(',')]);
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -290,11 +315,21 @@ export default function ProblemsPage() {
           />
         ) : (
           <>
-            {/* Problems List */}
-            <div className="space-y-3">
+        {/* Problems List */}
+        <div className="space-y-3">
               {problems.map((problem) => {
-                const StatusIcon = problem.userStatus ? statusIcons[problem.userStatus] : statusIcons.unsolved;
-                const statusColor = problem.userStatus ? statusColors[problem.userStatus] : statusColors.unsolved;
+                if (!problem || !problem.id) return null;
+                
+                const StatusIcon = problem.userStatus && statusIcons[problem.userStatus] 
+                  ? statusIcons[problem.userStatus] 
+                  : statusIcons.unsolved;
+                const statusColor = problem.userStatus && statusColors[problem.userStatus]
+                  ? statusColors[problem.userStatus]
+                  : statusColors.unsolved;
+                
+                const difficultyColor = problem.difficulty && difficultyColors[problem.difficulty]
+                  ? difficultyColors[problem.difficulty]
+                  : '';
                 
                 return (
                   <Link
@@ -311,11 +346,13 @@ export default function ProblemsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         <h3 className="text-foreground font-medium group-hover:text-primary">
-                          {problem.title}
+                          {problem.title || 'Untitled Problem'}
                         </h3>
-                        <Badge variant="outline" className={`text-xs ${difficultyColors[problem.difficulty]}`}>
-                          {problem.difficulty}
-                        </Badge>
+                        {problem.difficulty && (
+                          <Badge variant="outline" className={`text-xs ${difficultyColor}`}>
+                            {problem.difficulty}
+                          </Badge>
+                        )}
                         {problem.isDailyQuestion && (
                           <Badge className="bg-purple-500/20 text-purple-400 border-0 text-xs">
                             Daily
@@ -323,12 +360,12 @@ export default function ProblemsPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        {problem.topics.slice(0, 3).map((topic) => (
+                        {Array.isArray(problem.topics) && problem.topics.length > 0 && problem.topics.slice(0, 3).map((topic) => (
                           <Badge key={topic} className="bg-blue-600/20 text-blue-400 border-0 text-xs">
                             {topic}
                           </Badge>
                         ))}
-                        {problem.topics.length > 3 && (
+                        {Array.isArray(problem.topics) && problem.topics.length > 3 && (
                           <span className="text-xs text-muted-foreground">+{problem.topics.length - 3} more</span>
                         )}
                       </div>
@@ -338,25 +375,27 @@ export default function ProblemsPage() {
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <span className="text-yellow-500">⚡</span>
-                        <span>{problem.platform}</span>
-                        {problem.acceptanceRate !== null && problem.acceptanceRate !== undefined && (
+                        <span>{problem.platform || 'Unknown'}</span>
+                        {problem.acceptanceRate !== null && problem.acceptanceRate !== undefined && !isNaN(problem.acceptanceRate) && (
                           <span className="ml-2">{problem.acceptanceRate.toFixed(1)}%</span>
                         )}
                       </div>
                     </div>
 
                     {/* Action Button */}
-                    <Button
-                      size="sm"
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        window.open(problem.problemLink, '_blank');
-                      }}
-                    >
-                      {problem.userStatus === 'attempted' ? 'Resume' : problem.userStatus === 'solved' ? 'View' : 'Solve'}
-                    </Button>
+                    {problem.problemLink && (
+                      <Button
+                        size="sm"
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          window.open(problem.problemLink, '_blank');
+                        }}
+                      >
+                        {problem.userStatus === 'attempted' ? 'Resume' : problem.userStatus === 'solved' ? 'View' : 'Solve'}
+                      </Button>
+                    )}
                   </Link>
                 );
               })}
@@ -370,7 +409,7 @@ export default function ProblemsPage() {
                   pageCount={meta.totalPages}
                   onPageChange={setPage}
                 />
-              </div>
+        </div>
             )}
           </>
         )}

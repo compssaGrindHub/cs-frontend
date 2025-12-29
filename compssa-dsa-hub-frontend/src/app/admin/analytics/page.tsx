@@ -14,7 +14,7 @@ import {
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Download, TrendingUp, Users, Code2, Trophy, Activity, Calendar } from 'lucide-react';
 import { format, subDays } from 'date-fns';
-import { getSystemOverview, getUserGrowth, getEngagement, getSubmissionsStats, getAttendanceAnalytics, getUsageTimeStats } from '@/lib/api';
+import { getSystemOverview, getUserGrowth, getEngagement, getSubmissionsStats, getAttendanceAnalytics, getUsageTimeStats, getTopicDistribution, getProblemSolveRate, getContestParticipationRate, getEngagementChart } from '@/lib/api';
 import { Loading } from '@/components/common/Loading';
 
 
@@ -60,7 +60,32 @@ export default function AdminAnalyticsPage() {
     queryFn: () => getUsageTimeStats(getDateRange()),
   });
 
-  const isLoading = overviewLoading || growthLoading || engagementLoading || submissionsLoading || attendanceLoading || usageTimeLoading;
+  const { data: topicDistribution, isLoading: topicDistributionLoading } = useQuery({
+    queryKey: ['admin', 'topicDistribution'],
+    queryFn: getTopicDistribution,
+  });
+
+  const { data: problemSolveRate, isLoading: problemSolveRateLoading } = useQuery({
+    queryKey: ['admin', 'problemSolveRate', timeRange],
+    queryFn: () => getProblemSolveRate(getDateRange()),
+  });
+
+  const { data: contestParticipationRate, isLoading: contestParticipationRateLoading } = useQuery({
+    queryKey: ['admin', 'contestParticipationRate', timeRange],
+    queryFn: () => getContestParticipationRate(getDateRange()),
+  });
+
+  const { data: engagementChart, isLoading: engagementChartLoading } = useQuery({
+    queryKey: ['admin', 'engagementChart', timeRange],
+    queryFn: () => getEngagementChart(getDateRange()),
+  });
+
+  const { data: attendanceAnalytics } = useQuery({
+    queryKey: ['admin', 'attendance', timeRange],
+    queryFn: () => getAttendanceAnalytics(getDateRange()),
+  });
+
+  const isLoading = overviewLoading || growthLoading || engagementLoading || submissionsLoading || attendanceLoading || usageTimeLoading || topicDistributionLoading || problemSolveRateLoading || contestParticipationRateLoading || engagementChartLoading;
 
   const totalHoursSpent = usageTimeStats?.overall ? Math.floor(usageTimeStats.overall / 60) : 0;
   const totalMinutesRemainder = usageTimeStats?.overall ? usageTimeStats.overall % 60 : 0;
@@ -88,14 +113,14 @@ export default function AdminAnalyticsPage() {
     CodeChef: 0,
   })) || [];
 
-  const topicData = [
-    { name: 'Arrays & Hashing', value: 342, color: '#3b82f6' },
-    { name: 'Two Pointers', value: 198, color: '#10b981' },
-    { name: 'Dynamic Programming', value: 276, color: '#f59e0b' },
-    { name: 'Trees & Graphs', value: 234, color: '#8b5cf6' },
-    { name: 'Binary Search', value: 156, color: '#ef4444' },
-    { name: 'Other', value: 124, color: '#6b7280' },
-  ];
+  const topicData = topicDistribution?.slice(0, 10).map((item, index) => {
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#6b7280'];
+    return {
+      name: item.topic,
+      value: item.count,
+      color: colors[index % colors.length],
+    };
+  }) || [];
 
   const difficultyData = [
     { name: 'Easy', value: 450, color: '#10b981' },
@@ -103,7 +128,11 @@ export default function AdminAnalyticsPage() {
     { name: 'Hard', value: 260, color: '#ef4444' },
   ];
 
-  const engagementData = userGrowthData;
+  const engagementData = engagementChart?.map((item) => ({
+    date: item.date,
+    sessions: item.sessions,
+    avgDuration: item.avgDuration,
+  })) || [];
 
   const handleExport = (type: 'csv' | 'pdf') => {
     console.log(`Exporting analytics as ${type}`);
@@ -220,7 +249,6 @@ export default function AdminAnalyticsPage() {
                   borderRadius: '8px',
                 }}
               />
-              <Legend />
               <Bar dataKey="count" fill="#3b82f6" name="Submissions" />
             </BarChart>
           </ResponsiveContainer>
@@ -236,21 +264,10 @@ export default function AdminAnalyticsPage() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={topicData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {topicData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
+              <BarChart data={topicData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
+                <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" width={150} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
@@ -258,7 +275,8 @@ export default function AdminAnalyticsPage() {
                     borderRadius: '8px',
                   }}
                 />
-              </PieChart>
+                <Bar dataKey="value" fill="#3b82f6" name="Problems Solved" />
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
@@ -337,7 +355,11 @@ export default function AdminAnalyticsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Attendance Rate</p>
-                <p className="text-2xl font-bold text-blue-500">87%</p>
+                <p className="text-2xl font-bold text-blue-500">
+                  {attendanceAnalytics?.items && attendanceAnalytics.items.length > 0
+                    ? Math.round(attendanceAnalytics.items.reduce((sum, item) => sum + item.percentage, 0) / attendanceAnalytics.items.length * 100) / 100
+                    : 0}%
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">Across all sessions</p>
               </div>
             </div>
@@ -352,7 +374,7 @@ export default function AdminAnalyticsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Avg Problem Solve Rate</p>
-                <p className="text-2xl font-bold text-green-500">42%</p>
+                <p className="text-2xl font-bold text-green-500">{problemSolveRate?.solveRate || 0}%</p>
                 <p className="text-xs text-muted-foreground mt-1">Platform-wide</p>
               </div>
             </div>
@@ -367,7 +389,7 @@ export default function AdminAnalyticsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Contest Participation</p>
-                <p className="text-2xl font-bold text-purple-500">74%</p>
+                <p className="text-2xl font-bold text-purple-500">{contestParticipationRate?.participationRate || 0}%</p>
                 <p className="text-xs text-muted-foreground mt-1">Active members</p>
               </div>
             </div>

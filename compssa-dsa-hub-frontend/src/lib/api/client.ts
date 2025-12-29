@@ -48,6 +48,15 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error) => {
+    // Skip logging timeout errors for activity endpoints (they're non-critical)
+    const isActivityEndpoint = error.config?.url?.includes('/activity/');
+    const isTimeoutError = error.code === 'ECONNABORTED' || error.message?.includes('timeout');
+    
+    if (isActivityEndpoint && isTimeoutError) {
+      // Silently ignore timeout errors for activity endpoints - they're non-critical
+      return Promise.reject(error);
+    }
+    
     // Log error for debugging (only in development, and only if error response exists)
     if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && error.response) {
       const method = error.config?.method?.toUpperCase() || 'UNKNOWN';

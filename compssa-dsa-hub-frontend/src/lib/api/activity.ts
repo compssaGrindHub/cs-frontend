@@ -15,7 +15,9 @@ export const getMyTimeSpent = async (params?: { from?: string; to?: string }): P
  * POST /api/activity/start
  */
 export const startActivitySession = async (): Promise<void> => {
-  await apiClient.post<ApiResponse<any>>('/activity/start', { userId: null }); // userId comes from auth
+  await apiClient.post<ApiResponse<any>>('/activity/start', {}, {
+    timeout: 5000, // 5 second timeout instead of default 30s
+  });
 };
 
 /**
@@ -23,7 +25,9 @@ export const startActivitySession = async (): Promise<void> => {
  * POST /api/activity/ping
  */
 export const pingActivity = async (): Promise<void> => {
-  await apiClient.post<ApiResponse<any>>('/activity/ping', { userId: null }); // userId comes from auth
+  await apiClient.post<ApiResponse<any>>('/activity/ping', {}, {
+    timeout: 5000, // 5 second timeout
+  });
 };
 
 /**
@@ -31,5 +35,7 @@ export const pingActivity = async (): Promise<void> => {
  * POST /api/activity/end
  */
 export const endActivitySession = async (): Promise<void> => {
-  await apiClient.post<ApiResponse<any>>('/activity/end', { userId: null }); // userId comes from auth
+  await apiClient.post<ApiResponse<any>>('/activity/end', {}, {
+    timeout: 3000, // 3 second timeout - fail fast for non-critical operation
+  });
 };

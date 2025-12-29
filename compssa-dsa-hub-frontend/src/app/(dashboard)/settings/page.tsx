@@ -388,7 +388,7 @@ export default function SettingsPage() {
                             disabled={updateProfileMutation.isPending}
                           >
                             {leetcodeUsername ? 'Update' : 'Connect'}
-                          </Button>
+                        </Button>
                         </div>
                       </div>
 
@@ -419,7 +419,7 @@ export default function SettingsPage() {
                             disabled={updateProfileMutation.isPending}
                           >
                             {codeforcesHandle ? 'Update' : 'Connect'}
-                          </Button>
+                        </Button>
                         </div>
                       </div>
 
