@@ -39,16 +39,15 @@ export default function AdminUsersPage() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'USER' | 'ADMIN' | 'INSTRUCTOR'>('ALL');
-  const [page, setPage] = useState(1);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const { data: usersData, isLoading: usersLoading } = useQuery({
-    queryKey: ['users', { page, search: searchTerm, roleFilter }],
-    queryFn: () => getUsers({ page, limit: 20, search: searchTerm || undefined }),
+    queryKey: ['users'],
+    queryFn: () => getUsers({ limit: 20, search: searchTerm || undefined }),
   });
 
-  const users = usersData?.data || [];
+  const users = useMemo(() => usersData?.data || [], [usersData?.data]);
   const meta = usersData?.meta;
 
   const filteredUsers = useMemo(() => {
@@ -217,7 +216,7 @@ export default function AdminUsersPage() {
                       <TableCell>
                         <div>
                           <p className="font-semibold text-yellow-500">{user.totalRating}</p>
-                          {user.globalRank > 0 && (
+                          {user.globalRank && user.globalRank > 0 && (
                             <p className="text-xs text-muted-foreground">Rank #{user.globalRank}</p>
                           )}
                         </div>
@@ -226,11 +225,11 @@ export default function AdminUsersPage() {
                         <div className="space-y-1 text-sm">
                           <div className="flex items-center gap-2">
                             <span className="text-muted-foreground">Problems:</span>
-                            <span className="font-medium text-foreground">{user.problemsSolved}</span>
+                            <span className="font-medium text-foreground">{user.currentStreak || 0}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-muted-foreground">Contests:</span>
-                            <span className="font-medium text-foreground">{user.contestsParticipated}</span>
+                            <span className="font-medium text-foreground">{user.longestStreak || 0}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-muted-foreground">Streak:</span>
@@ -280,7 +279,7 @@ export default function AdminUsersPage() {
           <DialogHeader>
             <DialogTitle className="text-foreground">Delete User</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Are you sure you want to delete user "{selectedUser?.username}"? This will permanently remove all their
+              Are you sure you want to delete user &quot;{selectedUser?.username}&quot;? This will permanently remove all their
               data including submissions, progress, and achievements. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>

@@ -2,7 +2,7 @@
 
 import { use, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { notFound, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { getProblemBySlug } from '@/lib/api/problems';
 import { createSubmission } from '@/lib/api/submissions';
@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/select';
 import { Loading } from '@/components/common/Loading';
 import { EmptyState } from '@/components/common/EmptyState';
-import { CheckCircle2, XCircle, Play, Code2, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, XCircle, Play, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -115,7 +115,7 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
       toast.success('Solution submitted successfully!');
       
       // If accepted and GitHub is connected, push to GitHub
-      if (submission.status === 'ACCEPTED' && hasGithubConnected && !submission.githubUrl) {
+      if (submission && submission.status === 'ACCEPTED' && hasGithubConnected && !submission.githubUrl) {
         try {
           const { pushSubmissionToGitHub } = await import('@/lib/api/submissions');
           const pushResult = await pushSubmissionToGitHub(submission.id);
@@ -124,7 +124,7 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
               description: 'View it on GitHub',
               action: {
                 label: 'Open',
-                onClick: () => window.open(pushResult.data.commitUrl, '_blank'),
+                onClick: () => window.open(pushResult.data?.commitUrl || '', '_blank'),
               },
             });
           }

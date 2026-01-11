@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,10 +24,10 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Edit2, Trash2, Calendar, Clock, MapPin, Users, ChevronRight, UserCheck } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, Clock, MapPin, UserCheck, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { getSessions, createSession, updateSession, deleteSession } from '@/lib/api';
-import { Session, SessionType } from '@/lib/api/sessions';
+import type { Session, SessionType } from '@/lib/api/sessions';
 import { Loading } from '@/components/common/Loading';
 
 const sessionTypes = [
@@ -62,7 +62,6 @@ export default function SessionManagementPage() {
   });
 
   const sessions = sessionsData?.data || [];
-  const meta = sessionsData?.meta;
 
   const createMutation = useMutation({
     mutationFn: createSession,
@@ -75,7 +74,7 @@ export default function SessionManagementPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => updateSession(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => updateSession(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
       queryClient.refetchQueries({ queryKey: ['sessions'] });
@@ -97,7 +96,7 @@ export default function SessionManagementPage() {
     const startDateTime = new Date(`${formData.date}T${formData.startTime}`);
     const endDateTime = new Date(`${formData.date}T${formData.endTime}`);
 
-    const baseData: any = {
+    const baseData: Record<string, unknown> = {
       name: formData.name,
       type: formData.type,
       date: sessionDate.toISOString(),
@@ -124,7 +123,8 @@ export default function SessionManagementPage() {
         data: baseData,
       });
     } else {
-      createMutation.mutate(baseData);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      createMutation.mutate(baseData as any);
     }
   };
 

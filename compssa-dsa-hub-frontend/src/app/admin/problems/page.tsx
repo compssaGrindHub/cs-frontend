@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -61,7 +61,6 @@ const emptyProblem = {
 
 export default function AdminProblemsPage() {
   const queryClient = useQueryClient();
-  const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [platformFilter, setPlatformFilter] = useState<Platform | 'ALL'>('ALL');
   const [difficultyFilter, setDifficultyFilter] = useState<Difficulty | 'ALL'>('ALL');
@@ -75,9 +74,8 @@ export default function AdminProblemsPage() {
   const [bulkData, setBulkData] = useState('');
 
   const { data: problemsData, isLoading } = useQuery({
-    queryKey: ['problems', page, platformFilter, difficultyFilter, searchTerm],
+    queryKey: ['problems', 'all', platformFilter, difficultyFilter, searchTerm],
     queryFn: () => getProblems({
-      page,
       limit: 50,
       platform: platformFilter !== 'ALL' ? platformFilter : undefined,
       difficulty: difficultyFilter !== 'ALL' ? difficultyFilter : undefined,
@@ -86,13 +84,12 @@ export default function AdminProblemsPage() {
   });
 
   const problems = problemsData?.data || [];
-  const meta = problemsData?.meta;
 
   const createMutation = useMutation({
     mutationFn: createProblem,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['problems'] });
-      queryClient.refetchQueries({ queryKey: ['problems'] });
+      queryClient.invalidateQueries({ queryKey: ['problems', 'all'] });
+      queryClient.refetchQueries({ queryKey: ['problems', 'all'] });
       setIsCreateDialogOpen(false);
       setFormData(emptyProblem);
       setTopicsInput('');
@@ -100,10 +97,10 @@ export default function AdminProblemsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => updateProblem(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Problem }) => updateProblem(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['problems'] });
-      queryClient.refetchQueries({ queryKey: ['problems'] });
+      queryClient.invalidateQueries({ queryKey: ['problems', 'all'] });
+      queryClient.refetchQueries({ queryKey: ['problems', 'all'] });
       setIsEditDialogOpen(false);
       setSelectedProblem(null);
       setFormData(emptyProblem);
@@ -114,8 +111,8 @@ export default function AdminProblemsPage() {
   const deleteMutation = useMutation({
     mutationFn: deleteProblem,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['problems'] });
-      queryClient.refetchQueries({ queryKey: ['problems'] });
+      queryClient.invalidateQueries({ queryKey: ['problems', 'all'] });
+      queryClient.refetchQueries({ queryKey: ['problems', 'all'] });
       setIsDeleteDialogOpen(false);
       setSelectedProblem(null);
     },
@@ -124,15 +121,15 @@ export default function AdminProblemsPage() {
   const bulkImportMutation = useMutation({
     mutationFn: bulkImportProblems,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['problems'] });
-      queryClient.refetchQueries({ queryKey: ['problems'] });
+      queryClient.invalidateQueries({ queryKey: ['problems', 'all'] });
+      queryClient.refetchQueries({ queryKey: ['problems', 'all'] });
       setIsBulkImportOpen(false);
       setBulkData('');
     },
   });
 
   const stats = [
-    { label: 'Total Problems', value: meta?.total || 0, color: 'text-blue-500' },
+    { label: 'Total Problems', value: problemsData?.meta?.total || 0, color: 'text-blue-500' },
     { label: 'Easy', value: problems.filter((p) => p.difficulty === 'EASY').length, color: 'text-green-500' },
     { label: 'Medium', value: problems.filter((p) => p.difficulty === 'MEDIUM').length, color: 'text-yellow-500' },
     { label: 'Hard', value: problems.filter((p) => p.difficulty === 'HARD').length, color: 'text-red-500' },
@@ -156,6 +153,7 @@ export default function AdminProblemsPage() {
     updateMutation.mutate({
       id: selectedProblem.id,
       data: {
+        ...selectedProblem,
         title: formData.title,
         slug: formData.slug,
         platform: formData.platform,
@@ -164,7 +162,7 @@ export default function AdminProblemsPage() {
         description: formData.description,
         topics: topicsInput.split(',').map((t) => t.trim()).filter(Boolean),
         acceptanceRate: formData.acceptanceRate,
-      },
+      } as Problem,
     });
   };
 
@@ -178,7 +176,7 @@ export default function AdminProblemsPage() {
       const parsed = JSON.parse(bulkData);
       const problemsArray = Array.isArray(parsed) ? parsed : [parsed];
       bulkImportMutation.mutate({ problems: problemsArray });
-    } catch (error) {
+    } catch {
       alert('Invalid JSON format');
     }
   };
@@ -643,7 +641,7 @@ export default function AdminProblemsPage() {
           <DialogHeader>
             <DialogTitle className="text-foreground">Delete Problem</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Are you sure you want to delete "{selectedProblem?.title}"? This action cannot be undone.
+              Are you sure you want to delete &quot;{selectedProblem?.title}&quot;? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

@@ -1,7 +1,18 @@
 // Export all API functions for easier imports
 export * from './auth';
 export * from './users';
-export * from './problems';
+export {
+	getProblems,
+	getDailyQuestion,
+	getProblemBySlug,
+	getProblemById,
+	getProblemStats,
+	createProblem,
+	bulkImportProblems,
+	updateProblem,
+	deleteProblem,
+} from './problems';
+export type { Problem, ProblemDetail } from './problems';
 export * from './contests';
 export * from './sessions';
 export * from './submissions';

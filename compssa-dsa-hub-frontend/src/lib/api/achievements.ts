@@ -20,7 +20,7 @@ export interface Achievement {
   description: string;
   icon: string;
   type: AchievementType;
-  requirement: Record<string, any>;
+  requirement: Record<string, unknown>;
   createdAt: string;
 }
 
@@ -29,7 +29,7 @@ export interface UserAchievement {
   userId: string;
   achievementId: string;
   earnedAt: string;
-  metadata?: Record<string, any> | null;
+  metadata?: Record<string, unknown> | null;
   achievement: Achievement;
 }
 
@@ -47,7 +47,7 @@ interface CreateAchievementRequest {
   description: string;
   icon: string;
   type: AchievementType;
-  requirement: Record<string, any>;
+  requirement: Record<string, unknown>;
 }
 
 /**

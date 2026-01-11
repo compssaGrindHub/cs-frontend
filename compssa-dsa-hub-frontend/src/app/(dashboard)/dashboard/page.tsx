@@ -5,16 +5,11 @@ import { useAuthStore } from '@/lib/stores/authStore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   CheckCircle2, 
-  TrendingUp, 
   Flame, 
   Trophy,
   ArrowRight,
-  Calendar,
-  MapPin,
-  Users,
   Code2,
   BarChart3,
   Clock
@@ -48,7 +43,7 @@ export default function DashboardPage() {
   // Fetch user stats
   const { data: userStats, isLoading: statsLoading } = useQuery({
     queryKey: ['userStats', currentUser?.id],
-    queryFn: () => getUserStats(currentUser!.id),
+    queryFn: () => getUserStats(currentUser?.id || ''),
     enabled: !!currentUser?.id,
     retry: 1,
   });
@@ -56,7 +51,7 @@ export default function DashboardPage() {
   // Fetch user rank
   const { data: rankData, isLoading: rankLoading } = useQuery({
     queryKey: ['userRank', currentUser?.id],
-    queryFn: () => getUserRank(currentUser!.id),
+    queryFn: () => getUserRank(currentUser?.id || ''),
     enabled: !!currentUser?.id,
     retry: 1,
   });
@@ -76,14 +71,14 @@ export default function DashboardPage() {
   // Fetch recent submissions
   const { data: submissionsData, isLoading: submissionsLoading } = useQuery({
     queryKey: ['recentSubmissions', currentUser?.id],
-    queryFn: () => getUserSubmissions(currentUser!.id, { page: 1, limit: 5 }),
+    queryFn: () => getUserSubmissions(currentUser?.id || '', { page: 1, limit: 5 }),
     enabled: !!currentUser?.id,
   });
 
   // Fetch user progress
   const { data: progressData, isLoading: progressLoading } = useQuery({
     queryKey: ['userProgress', currentUser?.id],
-    queryFn: () => getUserProgress(currentUser!.id),
+    queryFn: () => getUserProgress(currentUser?.id || ''),
     enabled: !!currentUser?.id,
   });
 
@@ -99,14 +94,14 @@ export default function DashboardPage() {
 
   // Use user from API response if available, otherwise fall back to store
   const user = userData?.data || currentUser;
-  const stats = userStats?.data;
-  const userRank = rankData?.data?.rank || 0;
+  const stats = userStats;
+  const userRank = rankData?.rank || 0;
   const daily = dailyQuestion?.data;
   // getUpcomingContests already returns the array (extracts response.data.data)
   const upcomingContests = contestsData || [];
   // getUserSubmissions returns { data: [], meta: {} } directly (not wrapped in ApiResponse)
   const recentSubmissions = submissionsData?.data || [];
-  const progress = progressData?.data?.topics || [];
+  const progress = progressData?.topics || [];
 
   // Calculate derived stats
   const totalProblems = stats?.totalProblems || 0;
@@ -306,7 +301,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground">
-                          {submission.status === 'ACCEPTED' ? 'Solved' : 'Attempted'} "{submission.problem?.title || 'Problem'}"
+                          {submission.status === 'ACCEPTED' ? 'Solved' : 'Attempted'} &quot;{submission.problem?.title || 'Problem'}&quot;
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {submission.problem?.difficulty} • {submission.language}
@@ -393,7 +388,7 @@ export default function DashboardPage() {
                 </Link>
               </div>
               <div className="space-y-4">
-                {progress.slice(0, 5).map((topic: { name: string; solved: number; total: number; percentage: number }) => (
+                {progress.slice(0, 5).map((topic) => (
                   <div key={topic.name}>
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm text-foreground">{topic.name}</p>

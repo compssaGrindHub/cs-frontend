@@ -112,7 +112,7 @@ export default function AdminDashboard() {
 
   const platformDistribution = (() => {
     const platforms: Record<string, number> = {};
-    problemsData?.data.forEach((p) => {
+    (problemsData?.data ?? []).forEach((p) => {
       const platform = p.platform || 'Other';
       platforms[platform] = (platforms[platform] || 0) + 1;
     });

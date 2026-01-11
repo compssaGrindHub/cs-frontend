@@ -31,7 +31,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Search, Pencil, Trash2, Award, TrendingUp, Users } from 'lucide-react';
+import { Plus, Search, Trash2, Award, TrendingUp } from 'lucide-react';
 import { getAchievements, createAchievement } from '@/lib/api';
 import { Achievement, AchievementType } from '@/lib/api/achievements';
 import { Loading } from '@/components/common/Loading';
@@ -51,39 +51,6 @@ const achievementTypes = [
 
 const iconOptions = ['🔥', '⭐', '🏆', '💎', '🎯', '🚀', '💪', '🎖️', '👑', '⚡', '🌟', '🥇', '🥈', '🥉', '🎓', '📚'];
 
-const mockAchievements: Achievement[] = [
-  {
-    id: '1',
-    name: 'Week Warrior',
-    description: 'Maintain a 7-day solving streak',
-    icon: '🔥',
-    type: 'STREAK_7',
-    requirement: { streakDays: 7 },
-    unlockedBy: 45,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    name: 'Century Club',
-    description: 'Solve 100 coding problems',
-    icon: '💯',
-    type: 'PROBLEMS_100',
-    requirement: { problemsSolved: 100 },
-    unlockedBy: 12,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    name: 'Contest Champion',
-    description: 'Finish in top 10 in any contest',
-    icon: '🏆',
-    type: 'TOP_10_FINISH',
-    requirement: { maxRank: 10 },
-    unlockedBy: 8,
-    createdAt: new Date().toISOString(),
-  },
-];
-
 const emptyAchievement = {
   name: '',
   description: '',
@@ -97,7 +64,6 @@ export default function AdminAchievementsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<AchievementType | 'ALL'>('ALL');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
   const [formData, setFormData] = useState(emptyAchievement);
@@ -108,7 +74,7 @@ export default function AdminAchievementsPage() {
     queryFn: () => getAchievements(),
   });
 
-  const achievements = achievementsData?.data || [];
+  const achievements = useMemo(() => achievementsData?.data || [], [achievementsData?.data]);
 
   const filteredAchievements = useMemo(() => {
     return achievements.filter((achievement) => {
@@ -146,7 +112,7 @@ export default function AdminAchievementsPage() {
         type: formData.type,
         requirement,
       });
-    } catch (error) {
+    } catch {
       alert('Invalid JSON format for requirement');
     }
   };
@@ -401,7 +367,7 @@ export default function AdminAchievementsPage() {
           <DialogHeader>
             <DialogTitle className="text-foreground">Delete Achievement</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Are you sure you want to delete "{selectedAchievement?.name}"? Users who unlocked this achievement will
+              Are you sure you want to delete &quot;{selectedAchievement?.name}&quot;? Users who unlocked this achievement will
               lose it.
             </DialogDescription>
           </DialogHeader>

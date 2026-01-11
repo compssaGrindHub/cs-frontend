@@ -95,8 +95,8 @@ export const createSubmission = async (submissionData: CreateSubmissionRequest):
  */
 export const createSubmissionFromExtension = async (
   submissionData: CreateSubmissionFromExtensionRequest
-): Promise<ApiResponse<any>> => {
-  const response = await apiClient.post<ApiResponse<any>>('/submissions/from-extension', submissionData);
+): Promise<ApiResponse<unknown>> => {
+  const response = await apiClient.post<ApiResponse<unknown>>('/submissions/from-extension', submissionData);
   return response.data;
 };
 
@@ -114,8 +114,8 @@ export const getUserSubmissions = async (
   // Backend returns { success: true, data: [], meta: {} } directly (not wrapped in ApiResponse)
   // response.data is { success: true, data: [], meta: {} }
   return {
-    data: (response.data as any).data || [],
-    meta: (response.data as any).meta || {
+    data: (response.data as unknown as PaginatedSubmissionsResponse).data || [],
+    meta: (response.data as unknown as PaginatedSubmissionsResponse).meta || {
       total: 0,
       page: 1,
       limit: 20,

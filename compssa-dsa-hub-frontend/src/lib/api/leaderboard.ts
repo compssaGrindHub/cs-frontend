@@ -66,11 +66,6 @@ interface LeaderboardMeta {
   userRank?: number;
 }
 
-interface PaginatedLeaderboardResponse {
-  data: LeaderboardEntry[];
-  meta: LeaderboardMeta;
-}
-
 interface PaginatedContestLeaderboardResponse {
   data: ContestLeaderboardEntry[];
   meta: {
@@ -138,6 +133,6 @@ export const getTopicLeaderboard = async (topic: string, limit?: number): Promis
  */
 export const getUserRank = async (userId: string): Promise<{ rank: number }> => {
   const response = await apiClient.get<ApiResponse<{ rank: number }>>(`/leaderboard/user/${userId}/rank`);
-  return response.data.data;
+  return response.data.data || { rank: 0 };
 };
 

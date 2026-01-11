@@ -13,8 +13,8 @@ import {
 } from '@/components/ui/select';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Download, TrendingUp, Users, Code2, Trophy, Activity, Calendar } from 'lucide-react';
-import { format, subDays } from 'date-fns';
-import { getSystemOverview, getUserGrowth, getEngagement, getSubmissionsStats, getAttendanceAnalytics, getUsageTimeStats, getTopicDistribution, getProblemSolveRate, getContestParticipationRate, getEngagementChart } from '@/lib/api';
+import { subDays } from 'date-fns';
+import { getSystemOverview, getUserGrowth, getSubmissionsStats, getUsageTimeStats, getTopicDistribution, getProblemSolveRate, getContestParticipationRate, getEngagementChart, getAttendanceAnalytics } from '@/lib/api';
 import { Loading } from '@/components/common/Loading';
 
 
@@ -40,19 +40,9 @@ export default function AdminAnalyticsPage() {
     queryFn: () => getUserGrowth({ ...getDateRange(), bucket: timeRange === '7d' ? 'day' : 'month' }),
   });
 
-  const { data: engagement, isLoading: engagementLoading } = useQuery({
-    queryKey: ['admin', 'engagement', timeRange],
-    queryFn: () => getEngagement(getDateRange()),
-  });
-
   const { data: submissionsStats, isLoading: submissionsLoading } = useQuery({
     queryKey: ['admin', 'submissions', timeRange],
     queryFn: () => getSubmissionsStats(getDateRange()),
-  });
-
-  const { data: attendanceStats, isLoading: attendanceLoading } = useQuery({
-    queryKey: ['admin', 'attendance', timeRange],
-    queryFn: () => getAttendanceAnalytics(getDateRange()),
   });
 
   const { data: usageTimeStats, isLoading: usageTimeLoading } = useQuery({
@@ -80,12 +70,12 @@ export default function AdminAnalyticsPage() {
     queryFn: () => getEngagementChart(getDateRange()),
   });
 
-  const { data: attendanceAnalytics } = useQuery({
+  const { data: attendanceAnalytics, isLoading: attendanceAnalyticsLoading } = useQuery({
     queryKey: ['admin', 'attendance', timeRange],
     queryFn: () => getAttendanceAnalytics(getDateRange()),
   });
 
-  const isLoading = overviewLoading || growthLoading || engagementLoading || submissionsLoading || attendanceLoading || usageTimeLoading || topicDistributionLoading || problemSolveRateLoading || contestParticipationRateLoading || engagementChartLoading;
+  const isLoading = overviewLoading || growthLoading || submissionsLoading || usageTimeLoading || topicDistributionLoading || problemSolveRateLoading || contestParticipationRateLoading || engagementChartLoading || attendanceAnalyticsLoading;
 
   const totalHoursSpent = usageTimeStats?.overall ? Math.floor(usageTimeStats.overall / 60) : 0;
   const totalMinutesRemainder = usageTimeStats?.overall ? usageTimeStats.overall % 60 : 0;

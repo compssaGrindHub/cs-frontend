@@ -4,7 +4,6 @@ import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
@@ -14,13 +13,7 @@ import {
   Trophy,
   Code2,
   CheckCircle2,
-  MapPin,
   Calendar,
-  Target,
-  Zap,
-  Users,
-  MessageSquare,
-  Eye,
   Clock
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -64,82 +57,6 @@ const getContributionColor = (level: number) => {
   };
   return colors[level as keyof typeof colors];
 };
-
-const mockProfile = {
-  username: 'AlexDev',
-  name: 'Alexander Mitchell',
-  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=AlexDev',
-  location: 'San Francisco, CA',
-  joinedDate: 'Jan 2024',
-  rating: 1450,
-  globalRank: 42,
-  nextRank: 'Master',
-  problemsSolved: 125,
-  contests: 23,
-  streak: 7,
-  percentile: 5,
-};
-
-const achievements = [
-  { id: 1, name: 'Champion', icon: '🏆', earned: true },
-  { id: 2, name: '30 Day Streak', icon: '🔥', earned: true },
-  { id: 3, name: '100 Solved', icon: '✓', earned: true },
-  { id: 4, name: 'Speedster', icon: '⚡', earned: true },
-  { id: 5, name: 'Graph Guru', icon: '📊', earned: false },
-  { id: 6, name: 'Coding King', icon: '👑', earned: false },
-];
-
-const recentActivities = [
-  {
-    id: 1,
-    type: 'solved',
-    title: 'Solved Binary Tree Maximum Path Sum',
-    subtitle: 'Hard • Python',
-    time: '2 hours ago',
-    icon: CheckCircle2,
-    color: 'text-green-500 bg-green-500/10',
-  },
-  {
-    id: 2,
-    type: 'contest',
-    title: 'Ranked #142 in Weekly Contest 382',
-    subtitle: 'Score: 3456 • +15 Rating',
-    time: 'Yesterday',
-    icon: Trophy,
-    color: 'text-blue-500 bg-blue-500/10',
-  },
-  {
-    id: 3,
-    type: 'achievement',
-    title: 'Unlocked 30 Day Streak badge',
-    subtitle: 'Consistency is key!',
-    time: '2 days ago',
-    icon: Flame,
-    color: 'text-orange-500 bg-orange-500/10',
-  },
-  {
-    id: 4,
-    type: 'failed',
-    title: 'Failed Merge k Sorted Lists',
-    subtitle: 'Hard • Time Limit Exceeded',
-    time: '3 days ago',
-    icon: Zap,
-    color: 'text-red-500 bg-red-500/10',
-  },
-];
-
-const topicStrength = [
-  { name: 'Arrays & Hashing', solved: 32, total: 45, color: 'bg-gradient-to-r from-green-600 to-blue-600' },
-  { name: 'Dynamic Programming', solved: 15, total: 50, color: 'bg-gradient-to-r from-orange-600 to-red-600' },
-  { name: 'Trees & Graphs', solved: 28, total: 40, color: 'bg-gradient-to-r from-blue-600 to-cyan-600' },
-  { name: 'Greedy', solved: 12, total: 25, color: 'bg-gradient-to-r from-orange-500 to-yellow-500' },
-];
-
-const languages = [
-  { name: 'Python 3', solved: 185 },
-  { name: 'JavaScript', solved: 42 },
-  { name: 'C++', solved: 12 },
-];
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -260,7 +177,7 @@ export default function ProfilePage() {
   // Extract data from API responses
   const stats = userStats || null;
   const rank = rankData?.rank || 0;
-  const activities = Array.isArray(activityData) ? activityData : [];
+  const activities = useMemo(() => Array.isArray(activityData) ? activityData : [], [activityData]);
   const progress = progressData?.topics || [];
   const achievements = Array.isArray(achievementsData) ? achievementsData : [];
 
@@ -272,7 +189,7 @@ export default function ProfilePage() {
   const contributionData = useMemo(() => {
     // Use activity data if available (has more history), otherwise use recent submissions
     const submissionsToUse = activities.length > 0 
-      ? activities.map((a: any) => ({ submissionTime: a.date }))
+      ? activities.map((a: { date?: string; submissionTime?: string }) => ({ submissionTime: a.date }))
       : (stats?.recentSubmissions || []);
     
     if (submissionsToUse.length === 0) {
@@ -282,8 +199,8 @@ export default function ProfilePage() {
     const data = [];
     const submissionMap = new Map<string, number>();
     
-    submissionsToUse.forEach((sub: any) => {
-      const date = new Date(sub.submissionTime || sub.date).toISOString().slice(0, 10);
+    submissionsToUse.forEach((sub: { submissionTime?: string; date?: string }) => {
+      const date = new Date(sub.submissionTime || sub.date || '').toISOString().slice(0, 10);
       submissionMap.set(date, (submissionMap.get(date) || 0) + 1);
     });
     
@@ -356,7 +273,7 @@ export default function ProfilePage() {
             <div className="flex items-start justify-between mb-6">
               <div className="flex items-start gap-6">
                 <Avatar className="w-24 h-24 border-2 border-primary">
-                  <AvatarImage src={user.profilePicture} alt={displayName} />
+                  <AvatarImage src={user.profilePicture || undefined} alt={displayName} />
                   <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
                     {displayName[0]?.toUpperCase() || user.username[0]?.toUpperCase()}
                   </AvatarFallback>
@@ -522,7 +439,7 @@ export default function ProfilePage() {
               
               <div className="space-y-3">
                 {activities.length > 0 ? (
-                  activities.map((activity: any) => {
+                  activities.map((activity: { type?: string; metadata?: { status?: string }; date?: string; description?: string }) => {
                     const Icon = activity.type === 'submission' && activity.metadata?.status === 'ACCEPTED'
                       ? CheckCircle2
                       : activity.type === 'submission'
@@ -544,7 +461,7 @@ export default function ProfilePage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-foreground">{activity.description}</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {formatDistanceToNow(new Date(activity.date), { addSuffix: true })}
+                            {activity.date ? formatDistanceToNow(new Date(activity.date), { addSuffix: true }) : 'Unknown date'}
                           </p>
                         </div>
                       </div>

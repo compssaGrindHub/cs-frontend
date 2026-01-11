@@ -10,7 +10,7 @@ import { CalendarDays, Clock3, MapPin, Users } from 'lucide-react';
 import { getSessionById, SessionType } from '@/lib/api/sessions';
 import { getSessionAttendance } from '@/lib/api/attendance';
 import { Loading } from '@/components/common/Loading';
-import EmptyState from '@/components/common/EmptyState';
+import { EmptyState } from '@/components/common/EmptyState';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/authStore';
 
@@ -32,7 +32,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     queryFn: () => getSessionById(id),
   });
 
-  const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
+  const { data: attendanceData } = useQuery({
     queryKey: ['attendance', 'session', id],
     queryFn: () => getSessionAttendance(id),
     enabled: !!session && isAdminOrInstructor,

@@ -11,15 +11,11 @@ interface SidebarContextType {
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
-
-  // Load state from localStorage on mount
-  useEffect(() => {
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
     const savedState = localStorage.getItem('sidebarCollapsed');
-    if (savedState !== null) {
-      setIsCollapsed(savedState === 'true');
-    }
-  }, []);
+    return savedState === 'true';
+  });
 
   // Save state to localStorage whenever it changes
   useEffect(() => {

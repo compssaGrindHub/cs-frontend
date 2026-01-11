@@ -1,5 +1,6 @@
 import { Platform } from './problem';
 
+export type { Platform };
 export type ContestStatus = 'UPCOMING' | 'LIVE' | 'COMPLETED';
 
 export interface Contest {

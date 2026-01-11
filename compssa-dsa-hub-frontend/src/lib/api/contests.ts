@@ -2,6 +2,9 @@ import apiClient from './client';
 import { ApiResponse } from '@/lib/types/api';
 import { Contest, ContestDetail, Standing } from '@/lib/types/contest';
 
+// Export types for use in components
+export type { Contest, ContestDetail, Standing };
+
 // Request types
 interface CreateContestRequest {
   name: string;
@@ -47,8 +50,8 @@ interface PaginatedContestsResponse {
  * GET /api/contests
  */
 export const getContests = async (params?: GetContestsParams): Promise<PaginatedContestsResponse> => {
-  const response = await apiClient.get<ApiResponse<PaginatedContestsResponse>>('/contests', { params });
-  return response.data as PaginatedContestsResponse;
+  const response = await apiClient.get<PaginatedContestsResponse>('/contests', { params });
+  return response.data;
 };
 
 /**
@@ -59,7 +62,7 @@ export const getUpcomingContests = async (limit?: number): Promise<Contest[]> =>
   const response = await apiClient.get<ApiResponse<Contest[]>>('/contests/upcoming', {
     params: { limit },
   });
-  return response.data.data;
+  return response.data.data || [];
 };
 
 /**
@@ -67,15 +70,13 @@ export const getUpcomingContests = async (limit?: number): Promise<Contest[]> =>
  * GET /api/contests/user/:userId
  */
 export const getUserContests = async (userId: string): Promise<Contest[]> => {
-  const response = await apiClient.get<ApiResponse<any[]>>(`/contests/user/${userId}`);
-  // Backend returns participations with contest nested, extract contest objects
-  return response.data.data.map((p: any) => {
-    // If it's a participation object with nested contest, extract the contest
-    if (p.contest && typeof p.contest === 'object') {
+  const response = await apiClient.get<ApiResponse<Array<{ contest?: Contest } | Contest>>>(`/contests/user/${userId}`);
+  const data = response.data.data || [];
+  return data.map((p: { contest?: Contest } | Contest) => {
+    if (p && typeof p === 'object' && 'contest' in p && p.contest) {
       return p.contest;
     }
-    // If it's already a contest object, return as is
-    return p;
+    return p as Contest;
   });
 };
 
@@ -101,9 +102,9 @@ export const getContestStandings = async (id: string): Promise<ApiResponse<Stand
  * Register for contest
  * POST /api/contests/:id/register
  */
-export const registerForContest = async (id: string): Promise<any> => {
-  const response = await apiClient.post<ApiResponse<any>>(`/contests/${id}/register`);
-  return response.data.data;
+export const registerForContest = async (id: string): Promise<{ message: string }> => {
+  const response = await apiClient.post<ApiResponse<{ message: string }>>(`/contests/${id}/register`);
+  return response.data.data || { message: 'Registered successfully' };
 };
 
 /**
@@ -119,8 +120,8 @@ export const createContest = async (contestData: CreateContestRequest): Promise<
  * Sync contest standings (admin only)
  * POST /api/contests/:id/sync
  */
-export const syncContestStandings = async (id: string): Promise<ApiResponse<any>> => {
-  const response = await apiClient.post<ApiResponse<any>>(`/contests/${id}/sync`);
+export const syncContestStandings = async (id: string): Promise<ApiResponse<{ synced: boolean }>> => {
+  const response = await apiClient.post<ApiResponse<{ synced: boolean }>>(`/contests/${id}/sync`);
   return response.data;
 };
 

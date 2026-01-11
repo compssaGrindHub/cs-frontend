@@ -5,6 +5,14 @@ export interface ApiResponse<T = any> {
   error?: string;
 }
 
+export interface ApiPaginatedResponse<T = any> {
+  success: boolean;
+  data: T[];
+  meta: PaginationMeta;
+  message?: string;
+  error?: string;
+}
+
 export interface PaginationParams {
   page?: number;
   limit?: number;

@@ -9,11 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  User,
   Lock,
   Zap,
   Bell,
@@ -25,12 +23,14 @@ import {
   Monitor,
   Trash2,
   ExternalLink,
+  User as UserIcon,
 } from 'lucide-react';
 import { updateUser, getCurrentUser } from '@/lib/api';
 import { changePassword } from '@/lib/api/auth';
 import { connectGitHub } from '@/lib/api/github';
 import { toast } from 'sonner';
 import { Loading } from '@/components/common/Loading';
+import { User } from '@/lib/types/user';
 import {
   Dialog,
   DialogContent,
@@ -43,7 +43,7 @@ import {
 type SettingsTab = 'profile' | 'account' | 'integrations' | 'notifications' | 'appearance';
 
 const settingsTabs: { id: SettingsTab; name: string; icon: React.ReactNode }[] = [
-  { id: 'profile', name: 'Profile', icon: <User className="w-4 h-4" /> },
+  { id: 'profile', name: 'Profile', icon: <UserIcon className="w-4 h-4" /> },
   { id: 'account', name: 'Account', icon: <Lock className="w-4 h-4" /> },
   { id: 'integrations', name: 'Integrations', icon: <Zap className="w-4 h-4" /> },
   { id: 'notifications', name: 'Notifications', icon: <Bell className="w-4 h-4" /> },
@@ -102,19 +102,20 @@ export default function SettingsPage() {
     queryKey: ['currentUser'],
     queryFn: () => getCurrentUser(),
     enabled: !!currentUser,
-    onSuccess: (data) => {
-      if (data.data) {
-        const user = data.data;
-        setFirstName(user.firstName || '');
-        setLastName(user.lastName || '');
-        setProfilePicture(user.profilePicture || '');
-        setCodeforcesHandle(user.codeforcesHandle || '');
-        setLeetcodeUsername(user.leetcodeUsername || '');
-        setGithubUsername(user.githubUsername || '');
-        setGithubRepo(user.githubRepo || '');
-      }
-    },
   });
+
+  useEffect(() => {
+    if (userData?.data) {
+      const user = userData.data;
+      setFirstName(user.firstName || '');
+      setLastName(user.lastName || '');
+      setProfilePicture(user.profilePicture || '');
+      setCodeforcesHandle(user.codeforcesHandle || '');
+      setLeetcodeUsername(user.leetcodeUsername || '');
+      setGithubUsername(user.githubUsername || '');
+      setGithubRepo(user.githubRepo || '');
+    }
+  }, [userData?.data]);
 
   const user = currentUser || userData?.data;
 
@@ -126,12 +127,14 @@ export default function SettingsPage() {
       codeforcesHandle?: string;
       leetcodeUsername?: string;
     }) => updateUser(user!.id, data),
-    onSuccess: (updatedUser) => {
-      setUser(updatedUser);
+    onSuccess: (updatedUser: { data?: User }) => {
+      if (updatedUser.data) {
+        setUser(updatedUser.data);
+      }
       queryClient.invalidateQueries({ queryKey: ['currentUser'] });
       toast.success('Profile updated successfully');
     },
-    onError: (error: any) => {
+    onError: (error: { response?: { data?: { error?: string } } }) => {
       toast.error(error.response?.data?.error || 'Failed to update profile');
     },
   });
@@ -145,15 +148,16 @@ export default function SettingsPage() {
       setNewPassword('');
       setConfirmPassword('');
     },
-    onError: (error: any) => {
+    onError: (error: { response?: { data?: { error?: string } } }) => {
       toast.error(error.response?.data?.error || 'Failed to change password');
     },
   });
 
   const connectGithubMutation = useMutation({
     mutationFn: (data: { token: string; repo?: string }) => connectGitHub(data),
-    onSuccess: (response) => {
-      toast.success(`GitHub connected successfully! Repository: ${response.data.repo}`);
+    onSuccess: (response: { data?: { repo?: string } }) => {
+      const repoName = response.data?.repo || 'cs-hub-solutions';
+      toast.success(`GitHub connected successfully! Repository: ${repoName}`);
       queryClient.invalidateQueries({ queryKey: ['currentUser'] });
       setShowGithubDialog(false);
       setGithubToken('');
@@ -167,7 +171,7 @@ export default function SettingsPage() {
         });
       }
     },
-    onError: (error: any) => {
+    onError: (error: { response?: { data?: { error?: string } } }) => {
       toast.error(error.response?.data?.error || 'Failed to connect GitHub account');
     },
   });
@@ -175,7 +179,7 @@ export default function SettingsPage() {
   const handleSaveProfile = () => {
     if (!user) return;
 
-    const updateData: any = {};
+    const updateData: Record<string, string | undefined> = {};
     if (firstName !== (user.firstName || '')) updateData.firstName = firstName || undefined;
     if (lastName !== (user.lastName || '')) updateData.lastName = lastName || undefined;
     if (profilePicture !== (user.profilePicture || '')) updateData.profilePicture = profilePicture || undefined;
@@ -560,7 +564,7 @@ export default function SettingsPage() {
                       <div>
                         <p className="text-foreground font-medium">Daily Challenge Reminder</p>
                         <p className="text-xs text-muted-foreground">
-                          Receive a notification at 9:00 AM if you haven't solved the daily problem.
+                          Receive a notification at 9:00 AM if you haven&apos;t solved the daily problem.
                         </p>
                       </div>
                       <Switch
@@ -808,23 +812,23 @@ export default function SettingsPage() {
                       rel="noopener noreferrer"
                       className="text-primary hover:underline inline-flex items-center gap-1"
                     >
-                      GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
+                      GitHub Settings &rarr; Developer settings &rarr; Personal access tokens &rarr; Tokens (classic)
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   </li>
-                  <li>Click "Generate new token" → "Generate new token (classic)"</li>
-                  <li>Give your token a descriptive name (e.g., "CS Hub Solutions")</li>
+                  <li>Click &quot;Generate new token&quot; &rarr; &quot;Generate new token (classic)&quot;</li>
+                  <li>Give your token a descriptive name (e.g., &quot;CS Hub Solutions&quot;)</li>
                   <li>Select expiration (recommended: 90 days or custom)</li>
                   <li>
                     <strong>Check the following scopes:</strong>
                     <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
-                      <li><code className="bg-muted px-1 rounded">repo</code> - Full control of private repositories</li>
-                      <li><code className="bg-muted px-1 rounded">workflow</code> - Update GitHub Action workflows</li>
+                      <li><code className="bg-muted px-1 rounded">repo</code> &ndash; Full control of private repositories</li>
+                      <li><code className="bg-muted px-1 rounded">workflow</code> &ndash; Update GitHub Action workflows</li>
                     </ul>
                   </li>
-                  <li>Click "Generate token" at the bottom</li>
+                  <li>Click &quot;Generate token&quot; at the bottom</li>
                   <li>
-                    <strong>Copy the token immediately</strong> - you won't be able to see it again!
+                    <strong>Copy the token immediately</strong> &ndash; you won&apos;t be able to see it again!
                   </li>
                 </ol>
               </CardContent>
@@ -842,7 +846,7 @@ export default function SettingsPage() {
                   placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Your token starts with "ghp_" and is 40+ characters long
+                  Your token starts with &quot;ghp_&quot; and is 40+ characters long
                 </p>
               </div>
 
@@ -855,7 +859,7 @@ export default function SettingsPage() {
                   placeholder="cs-hub-solutions"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Leave empty to use default: "cs-hub-solutions". Repository will be created automatically if it doesn't exist.
+                  Leave empty to use default: &quot;cs-hub-solutions&quot;. Repository will be created automatically if it doesn&apos;t exist.
                 </p>
               </div>
             </div>

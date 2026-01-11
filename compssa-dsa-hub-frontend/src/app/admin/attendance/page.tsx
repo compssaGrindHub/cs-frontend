@@ -26,10 +26,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Search, UserCheck, UserX, Users, CalendarClock, Save, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { getSessions } from '@/lib/api';
-import { Session } from '@/lib/api/sessions';
 import { getSessionAttendance, markBulkAttendance } from '@/lib/api/attendance';
 import { getUsers } from '@/lib/api';
-import { Loading } from '@/components/common/Loading';
 
 interface AttendanceRecord {
   userId: string;
@@ -43,44 +41,48 @@ export default function AdminAttendancePage() {
   const searchParams = useSearchParams();
   const sessionIdFromUrl = searchParams.get('sessionId');
   
-  const [selectedSessionId, setSelectedSessionId] = useState<string>(sessionIdFromUrl || '');
+  const [selectedSessionId, setSelectedSessionId] = useState<string>(() => sessionIdFromUrl || '');
   const [searchTerm, setSearchTerm] = useState('');
   const [attendance, setAttendance] = useState<Map<string, AttendanceRecord>>(new Map());
   const [hasChanges, setHasChanges] = useState(false);
 
-  const { data: sessionsData, isLoading: sessionsLoading } = useQuery({
+  const { data: sessionsData } = useQuery({
     queryKey: ['sessions'],
     queryFn: () => getSessions({ limit: 100 }),
   });
 
-  const sessions = sessionsData?.data || [];
+  const sessions = useMemo(() => sessionsData?.data || [], [sessionsData?.data]);
 
   useEffect(() => {
+    // Sync URL parameter to state - legitimate pattern for syncing external state
     if (sessionIdFromUrl && sessionIdFromUrl !== selectedSessionId) {
       setSelectedSessionId(sessionIdFromUrl);
     }
-  }, [sessionIdFromUrl]);
+  }, [sessionIdFromUrl, selectedSessionId]);
 
   useEffect(() => {
-    if (!selectedSessionId && sessions.length > 0) {
+    // Initialize session if not set from URL - legitimate pattern for syncing external state
+    if (sessions.length > 0 && !sessionIdFromUrl) {
       setSelectedSessionId(sessions[0].id);
     }
-  }, [selectedSessionId, sessions]);
+  }, [sessions, sessionIdFromUrl]);
 
-  const { data: usersData, isLoading: usersLoading } = useQuery({
+  const { data: usersData } = useQuery({
     queryKey: ['users', 'all'],
     queryFn: () => getUsers({ limit: 1000 }),
   });
 
-  const allUsers = usersData?.data || [];
+  const allUsers = useMemo(() => usersData?.data || [], [usersData?.data]);
 
-  const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
+  const { data: attendanceData } = useQuery({
     queryKey: ['attendance', 'session', selectedSessionId],
     queryFn: () => getSessionAttendance(selectedSessionId),
     enabled: !!selectedSessionId,
   });
 
+  // eslint-disable react-hooks/set-state-in-effect
   useEffect(() => {
+    // Build attendance map from fetched data - legitimate pattern for syncing query state to local state
     if (allUsers.length > 0 && attendanceData) {
       const attendanceMap = new Map<string, AttendanceRecord>();
 

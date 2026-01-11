@@ -15,9 +15,16 @@ export const getMyTimeSpent = async (params?: { from?: string; to?: string }): P
  * POST /api/activity/start
  */
 export const startActivitySession = async (): Promise<void> => {
-  await apiClient.post<ApiResponse<any>>('/activity/start', {}, {
-    timeout: 5000, // 5 second timeout instead of default 30s
-  });
+  try {
+    await apiClient.post<ApiResponse<unknown>>('/activity/start', {}, {
+      timeout: 15000, // give backend more headroom
+    });
+  } catch (error) {
+    // Non-critical; swallow to avoid blocking layout
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('startActivitySession skipped:', error);
+    }
+  }
 };
 
 /**
@@ -25,9 +32,15 @@ export const startActivitySession = async (): Promise<void> => {
  * POST /api/activity/ping
  */
 export const pingActivity = async (): Promise<void> => {
-  await apiClient.post<ApiResponse<any>>('/activity/ping', {}, {
-    timeout: 5000, // 5 second timeout
-  });
+  try {
+    await apiClient.post<ApiResponse<unknown>>('/activity/ping', {}, {
+      timeout: 15000,
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('pingActivity skipped:', error);
+    }
+  }
 };
 
 /**
@@ -35,7 +48,13 @@ export const pingActivity = async (): Promise<void> => {
  * POST /api/activity/end
  */
 export const endActivitySession = async (): Promise<void> => {
-  await apiClient.post<ApiResponse<any>>('/activity/end', {}, {
-    timeout: 3000, // 3 second timeout - fail fast for non-critical operation
-  });
+  try {
+    await apiClient.post<ApiResponse<unknown>>('/activity/end', {}, {
+      timeout: 8000,
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('endActivitySession skipped:', error);
+    }
+  }
 };

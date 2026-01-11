@@ -292,7 +292,7 @@ export default function SettingsPage() {
                     <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
                       <div>
                         <p className="text-foreground font-medium">Daily Challenge Reminder</p>
-                        <p className="text-xs text-muted-foreground">Receive a notification at 9:00 AM if you haven't solved the daily problem.</p>
+                        <p className="text-xs text-muted-foreground">Receive a notification at 9:00 AM if you haven&apos;t solved the daily problem.</p>
                       </div>
                       <Switch
                         checked={notifications.dailyChallenge}

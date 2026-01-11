@@ -89,8 +89,27 @@ interface PaginatedSessionsResponse {
  * GET /api/sessions
  */
 export const getSessions = async (params?: GetSessionsParams): Promise<PaginatedSessionsResponse> => {
-  const response = await apiClient.get<ApiResponse<PaginatedSessionsResponse>>('/sessions', { params });
-  return response.data as PaginatedSessionsResponse;
+  const response = await apiClient.get<{ success: boolean; data: Session[]; meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  } }>('/sessions', { params });
+  // Backend returns: { success: true, data: [...], meta: {...} }
+  // The controller spreads the result with ...result, so data and meta are at top level
+  return {
+    data: response.data.data || [],
+    meta: response.data.meta || {
+      total: 0,
+      page: 1,
+      limit: 20,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPrevPage: false,
+    },
+  };
 };
 
 /**
@@ -99,15 +118,15 @@ export const getSessions = async (params?: GetSessionsParams): Promise<Paginated
  */
 export const getSessionById = async (id: string): Promise<SessionDetail> => {
   const response = await apiClient.get<ApiResponse<SessionDetail>>(`/sessions/${id}`);
-  return response.data.data;
+  return response.data.data || {} as SessionDetail;
 };
 
 /**
  * Get session stats
  * GET /api/sessions/:id/stats
  */
-export const getSessionStats = async (id: string): Promise<ApiResponse<any>> => {
-  const response = await apiClient.get<ApiResponse<any>>(`/sessions/${id}/stats`);
+export const getSessionStats = async (id: string): Promise<ApiResponse<unknown>> => {
+  const response = await apiClient.get<ApiResponse<unknown>>(`/sessions/${id}/stats`);
   return response.data;
 };
 

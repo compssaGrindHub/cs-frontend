@@ -10,11 +10,9 @@ import { Input } from '@/components/ui/input';
 import { 
   Calendar, 
   Clock, 
-  Users, 
   Search,
   BarChart3,
-  CheckCircle2,
-  CalendarPlus
+  CheckCircle2
 } from 'lucide-react';
 import {
   Select,
@@ -86,7 +84,7 @@ export default function ContestsPage() {
       setOptimisticallyRegistered((prev) => new Set(prev).add(contestId));
       return registerForContest(contestId);
     },
-    onSuccess: (_, contestId) => {
+    onSuccess: () => {
       // Invalidate and refetch to get updated state
       queryClient.invalidateQueries({ queryKey: ['userContests'] });
       queryClient.invalidateQueries({ queryKey: ['contests'] });
@@ -95,7 +93,7 @@ export default function ContestsPage() {
       queryClient.refetchQueries({ queryKey: ['upcomingContests'] });
       toast.success('Successfully registered for contest');
     },
-    onError: (error: any, contestId) => {
+    onError: (error: { response?: { status?: number; data?: { error?: string } } }, contestId: string) => {
       const status = error.response?.status;
       const errorMessage = error.response?.data?.error || 'Failed to register for contest';
       
@@ -120,10 +118,10 @@ export default function ContestsPage() {
   });
 
   const featuredContest = featuredContestData?.[0];
-  const upcomingContests = upcomingContestsData?.data || [];
+  const upcomingContests = useMemo(() => upcomingContestsData?.data || [], [upcomingContestsData?.data]);
   // getUserContests returns Contest[] directly (not wrapped in data)
-  const myContests = Array.isArray(myContestsData) ? myContestsData : [];
-  const completedContests = completedContestsData?.data || [];
+  const myContests = useMemo(() => Array.isArray(myContestsData) ? myContestsData : [], [myContestsData]);
+  const completedContests = useMemo(() => completedContestsData?.data || [], [completedContestsData?.data]);
 
   const registeredContestIds = useMemo(() => {
     const ids = new Set<string>();

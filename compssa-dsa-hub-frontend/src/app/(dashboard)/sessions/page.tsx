@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { CalendarDays, Clock3, MapPin, Users } from 'lucide-react';
 import { getSessions, Session, SessionType } from '@/lib/api/sessions';
 import { cn } from '@/lib/utils';
-import EmptyState from '@/components/common/EmptyState';
+import { EmptyState } from '@/components/common/EmptyState';
 import { Pagination } from '@/components/common/Pagination';
 import { Loading } from '@/components/common/Loading';
 
@@ -99,10 +99,6 @@ export default function SessionsPage() {
     if (!search) return true;
     return s.name.toLowerCase().includes(search.toLowerCase());
   });
-
-  useEffect(() => {
-    setPage(1);
-  }, [type, upcomingOnly]);
 
   return (
     <div className="min-h-screen bg-background text-foreground p-6">

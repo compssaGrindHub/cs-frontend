@@ -43,10 +43,6 @@ interface ChangePasswordRequest {
   newPassword: string;
 }
 
-interface ForgotPasswordRequest {
-  email: string;
-}
-
 interface ResetPasswordRequest {
   token: string;
   newPassword: string;

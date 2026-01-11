@@ -2,6 +2,9 @@ import apiClient from './client';
 import { ApiResponse } from '@/lib/types/api';
 import { User, UserStats, UserProgress, UserActivity } from '@/lib/types/user';
 
+// Export types for use in components
+export type { User, UserStats, UserProgress, UserActivity };
+
 // Request types
 interface UpdateUserRequest {
   firstName?: string;
@@ -38,8 +41,27 @@ interface PaginatedUsersResponse {
  * GET /api/users
  */
 export const getUsers = async (params?: GetUsersParams): Promise<PaginatedUsersResponse> => {
-  const response = await apiClient.get<ApiResponse<PaginatedUsersResponse>>('/users', { params });
-  return response.data as PaginatedUsersResponse;
+  const response = await apiClient.get<{ success: boolean; data: User[]; meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  } }>('/users', { params });
+  // Backend returns: { success: true, data: [...], meta: {...} }
+  // The controller spreads the result with ...result
+  return {
+    data: response.data.data || [],
+    meta: response.data.meta || {
+      total: 0,
+      page: 1,
+      limit: 20,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPrevPage: false,
+    },
+  };
 };
 
 /**
@@ -74,7 +96,7 @@ export const deleteUser = async (id: string): Promise<void> => {
  */
 export const getUserStats = async (id: string): Promise<UserStats> => {
   const response = await apiClient.get<ApiResponse<UserStats>>(`/users/${id}/stats`);
-  return response.data.data;
+  return response.data.data || {} as UserStats;
 };
 
 /**
@@ -83,7 +105,7 @@ export const getUserStats = async (id: string): Promise<UserStats> => {
  */
 export const getUserProgress = async (id: string): Promise<UserProgress> => {
   const response = await apiClient.get<ApiResponse<UserProgress>>(`/users/${id}/progress`);
-  return response.data.data;
+  return response.data.data || {} as UserProgress;
 };
 
 /**
@@ -94,6 +116,6 @@ export const getUserActivity = async (id: string, limit?: number): Promise<UserA
   const response = await apiClient.get<ApiResponse<UserActivity[]>>(`/users/${id}/activity`, {
     params: { limit },
   });
-  return response.data.data;
+  return response.data.data || [];
 };
 

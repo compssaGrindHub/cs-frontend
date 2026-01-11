@@ -8,8 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Loading } from '@/components/common/Loading';
-import EmptyState from '@/components/common/EmptyState';
-import { getUserAttendance, getAttendanceStats, Attendance } from '@/lib/api/attendance';
+import { EmptyState } from '@/components/common/EmptyState';
+import { getUserAttendance, getAttendanceStats } from '@/lib/api/attendance';
 import { format } from 'date-fns';
 
 const levelColors = {
@@ -37,7 +37,7 @@ export default function AttendancePage() {
     refetchInterval: 30000,
   });
 
-  const attendance = attendanceData || [];
+  const attendance = useMemo(() => attendanceData || [], [attendanceData]);
   const stats = statsData || { totalDays: 0, presentDays: 0, absentDays: 0, percentage: 0, recentStreak: 0 };
 
   const attendanceMap = useMemo(() => {

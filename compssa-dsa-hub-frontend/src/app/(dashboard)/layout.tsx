@@ -129,25 +129,32 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, syncAuthState } = useAuthStore();
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    // Check if user is authenticated
+    // First, sync auth state from localStorage
+    syncAuthState();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // After syncing, check if we need to redirect
     if (!isAuthenticated || !user) {
+      // Only show loading if we actually need to redirect
       router.push('/login');
       return;
     }
 
     // All authenticated users (USER, ADMIN, INSTRUCTOR) can access user pages
-    // This includes ADMIN users who can access both admin and user pages
     // No role restriction needed here - all authenticated users are allowed
     setIsChecking(false);
-  }, [user, isAuthenticated, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isAuthenticated]);
 
-  // Show loading during redirect or auth check
-  if (isChecking || !isAuthenticated || !user) {
+  // Don't show loading if we already have a valid user - data is already hydrated from localStorage
+  if (isChecking && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loading size="lg" label="Loading..." />

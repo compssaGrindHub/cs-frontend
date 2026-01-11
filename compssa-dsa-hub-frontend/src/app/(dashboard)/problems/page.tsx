@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAuthStore } from '@/lib/stores/authStore';
 import { Search, List, LayoutGrid, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { getProblems, Problem } from '@/lib/api';
+import { getProblems } from '@/lib/api';
 import { Loading } from '@/components/common/Loading';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pagination } from '@/components/common/Pagination';
@@ -46,18 +45,17 @@ const commonTopics = [
 ];
 
 export default function ProblemsPage() {
-  const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPlatform, setSelectedPlatform] = useState('all');
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<'difficulty' | 'title' | 'acceptanceRate'>('title');
+  const [sortBy, setSortBy] = useState('title');
   const [page, setPage] = useState(1);
 
   const apiParams = useMemo(() => {
-    const params: any = {
+    const params: Record<string, unknown> = {
       page,
       limit: 20,
       sortBy,
@@ -93,26 +91,6 @@ export default function ProblemsPage() {
 
   const problems = Array.isArray(problemsData?.data) ? problemsData.data : [];
   const meta = problemsData?.meta || null;
-
-  const allTopics = useMemo(() => {
-    const topicSet = new Set<string>();
-    if (problems && Array.isArray(problems)) {
-      problems.forEach((p) => {
-        if (p && Array.isArray(p.topics)) {
-          p.topics.forEach((t) => {
-            if (t) topicSet.add(t);
-          });
-        }
-      });
-    }
-    return Array.from(topicSet).sort();
-  }, [problems]);
-
-  const activeFiltersCount = 
-    (selectedDifficulty !== 'all' ? 1 : 0) +
-    (selectedStatus !== 'all' ? 1 : 0) +
-    (selectedPlatform !== 'all' ? 1 : 0) +
-    selectedTopics.length;
 
   const clearAllFilters = () => {
     setSelectedDifficulty('all');

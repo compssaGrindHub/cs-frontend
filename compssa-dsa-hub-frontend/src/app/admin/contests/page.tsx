@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Search, Pencil, Trash2, Trophy, Clock, Users, RefreshCw, ExternalLink } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Trophy, Clock, Users, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { getContests, createContest, updateContest, deleteContest, syncContestStandings } from '@/lib/api';
 import { Contest, Platform } from '@/lib/types/contest';
@@ -55,12 +55,10 @@ const emptyContest = {
   startTime: '',
   duration: 120,
   isRated: true,
-  description: '',
 };
 
 export default function AdminContestsPage() {
   const queryClient = useQueryClient();
-  const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [platformFilter, setPlatformFilter] = useState<Platform | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'UPCOMING' | 'LIVE' | 'COMPLETED'>('ALL');
@@ -71,9 +69,8 @@ export default function AdminContestsPage() {
   const [formData, setFormData] = useState(emptyContest);
 
   const { data: contestsData, isLoading } = useQuery({
-    queryKey: ['contests', page, platformFilter, statusFilter, searchTerm],
+    queryKey: ['contests', 'all', platformFilter, statusFilter, searchTerm],
     queryFn: () => getContests({
-      page,
       limit: 50,
       platform: platformFilter !== 'ALL' ? platformFilter : undefined,
       status: statusFilter !== 'ALL' ? statusFilter : undefined,
@@ -86,18 +83,18 @@ export default function AdminContestsPage() {
   const createMutation = useMutation({
     mutationFn: createContest,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contests'] });
-      queryClient.refetchQueries({ queryKey: ['contests'] });
+      queryClient.invalidateQueries({ queryKey: ['contests', 'all'] });
+      queryClient.refetchQueries({ queryKey: ['contests', 'all'] });
       setIsCreateDialogOpen(false);
       setFormData(emptyContest);
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => updateContest(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Contest }) => updateContest(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contests'] });
-      queryClient.refetchQueries({ queryKey: ['contests'] });
+      queryClient.invalidateQueries({ queryKey: ['contests', 'all'] });
+      queryClient.refetchQueries({ queryKey: ['contests', 'all'] });
       setIsEditDialogOpen(false);
       setSelectedContest(null);
       setFormData(emptyContest);
@@ -107,8 +104,8 @@ export default function AdminContestsPage() {
   const deleteMutation = useMutation({
     mutationFn: deleteContest,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contests'] });
-      queryClient.refetchQueries({ queryKey: ['contests'] });
+      queryClient.invalidateQueries({ queryKey: ['contests', 'all'] });
+      queryClient.refetchQueries({ queryKey: ['contests', 'all'] });
       setIsDeleteDialogOpen(false);
       setSelectedContest(null);
     },
@@ -117,8 +114,8 @@ export default function AdminContestsPage() {
   const syncStandingsMutation = useMutation({
     mutationFn: syncContestStandings,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contests'] });
-      queryClient.refetchQueries({ queryKey: ['contests'] });
+      queryClient.invalidateQueries({ queryKey: ['contests', 'all'] });
+      queryClient.refetchQueries({ queryKey: ['contests', 'all'] });
     },
   });
 
@@ -130,49 +127,32 @@ export default function AdminContestsPage() {
   ];
 
   const handleCreate = () => {
-    const requestData: any = {
+    const requestData = {
       name: formData.name,
       platform: formData.platform,
       startTime: new Date(formData.startTime).toISOString(),
       duration: formData.duration,
       isRated: formData.isRated !== undefined ? formData.isRated : true,
+      ...(formData.externalId && { externalId: formData.externalId }),
     };
     
-    if (formData.externalId) {
-      requestData.externalId = formData.externalId;
-    }
-    
-    if (formData.description) {
-      requestData.description = formData.description;
-    }
-    
-    createMutation.mutate(requestData);
+    createMutation.mutate(requestData as unknown as Contest);
   };
 
   const handleEdit = () => {
     if (!selectedContest) return;
-    const requestData: any = {
+    const requestData = {
       name: formData.name,
       platform: formData.platform,
       startTime: new Date(formData.startTime).toISOString(),
       duration: formData.duration,
+      ...(formData.externalId && { externalId: formData.externalId }),
+      ...(formData.isRated !== undefined && { isRated: formData.isRated }),
     };
-    
-    if (formData.externalId) {
-      requestData.externalId = formData.externalId;
-    }
-    
-    if (formData.isRated !== undefined) {
-      requestData.isRated = formData.isRated;
-    }
-    
-    if (formData.description) {
-      requestData.description = formData.description;
-    }
     
     updateMutation.mutate({
       id: selectedContest.id,
-      data: requestData,
+      data: requestData as unknown as Contest,
     });
   };
 
@@ -194,7 +174,6 @@ export default function AdminContestsPage() {
       startTime: contest.startTime,
       duration: contest.duration,
       isRated: contest.isRated,
-      description: '',
     });
     setIsEditDialogOpen(true);
   };
@@ -441,18 +420,6 @@ export default function AdminContestsPage() {
                 />
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="description" className="text-foreground">
-                Description
-              </Label>
-              <Input
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="bg-background border-border"
-                placeholder="Contest description (optional)"
-              />
-            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="startTime" className="text-foreground">
@@ -610,7 +577,7 @@ export default function AdminContestsPage() {
           <DialogHeader>
             <DialogTitle className="text-foreground">Delete Contest</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Are you sure you want to delete "{selectedContest?.name}"? This action cannot be undone.
+              Are you sure you want to delete &quot;{selectedContest?.name}&quot;? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

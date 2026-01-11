@@ -44,16 +44,25 @@ interface PaginatedNotificationsResponse {
 export const getNotifications = async (
   params?: GetNotificationsParams
 ): Promise<PaginatedNotificationsResponse> => {
-  const response = await apiClient.get<ApiResponse<{ data: Notification[]; meta: any }>>('/notifications', { params });
-  // Backend returns { success: true, data: [], meta: {} } directly
+  const response = await apiClient.get<{ success: boolean; data: Notification[]; meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  } }>('/notifications', { params });
+  
+  const defaultMeta = {
+    total: 0,
+    page: 1,
+    limit: 20,
+    totalPages: 0,
+  };
+
+  // Backend returns: { success: true, data: notifications[], meta: {...} }
+  // So we need to extract from response.data.data and response.data.meta
   return {
     data: response.data.data || [],
-    meta: response.data.meta || {
-      total: 0,
-      page: 1,
-      limit: 20,
-      totalPages: 0,
-    },
+    meta: response.data.meta || defaultMeta,
   };
 };
 

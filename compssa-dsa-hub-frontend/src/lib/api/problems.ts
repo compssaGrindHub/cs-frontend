@@ -2,6 +2,26 @@ import apiClient from './client';
 import { ApiResponse } from '@/lib/types/api';
 import { Problem, ProblemDetail } from '@/lib/types/problem';
 
+// Export types for use in components
+export type { Problem, ProblemDetail };
+
+interface ProblemStats {
+  totalSubmissions: number;
+  acceptedSubmissions: number;
+  acceptanceRate: number;
+  totalUsers: number;
+  languageBreakdown: Array<{
+    language: string;
+    count: number;
+  }>;
+}
+
+interface BulkImportResult {
+  success: number;
+  failed: number;
+  errors: string[];
+}
+
 // Request types
 interface CreateProblemRequest {
   title: string;
@@ -64,19 +84,19 @@ interface PaginatedProblemsResponse {
  * GET /api/problems
  */
 export const getProblems = async (params?: GetProblemsParams): Promise<PaginatedProblemsResponse> => {
-  const response = await apiClient.get<ApiResponse<PaginatedProblemsResponse>>('/problems', { params });
-  // Handle both wrapped and unwrapped responses
-  if (response.data && 'data' in response.data && 'meta' in response.data) {
-    return response.data as PaginatedProblemsResponse;
-  }
-  // If response is wrapped in ApiResponse, extract the data
-  if (response.data && 'success' in response.data && response.data.success && 'data' in response.data) {
-    return (response.data as ApiResponse<PaginatedProblemsResponse>).data as PaginatedProblemsResponse;
-  }
-  // Fallback: return empty structure
+  const response = await apiClient.get<{ success: boolean; data: Problem[]; meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  } }>('/problems', { params });
+  // Backend returns: { success: true, data: [...], meta: {...} }
+  // The service spreads the result with ...result, so data and meta are at top level
   return {
-    data: [],
-    meta: {
+    data: response.data.data || [],
+    meta: response.data.meta || {
       total: 0,
       page: 1,
       limit: 20,
@@ -115,20 +135,11 @@ export const getProblemById = async (id: string): Promise<ApiResponse<ProblemDet
 };
 
 /**
- * Get problem submissions
- * GET /api/problems/:id/submissions
- */
-export const getProblemSubmissions = async (id: string): Promise<ApiResponse<any[]>> => {
-  const response = await apiClient.get<ApiResponse<any[]>>(`/problems/${id}/submissions`);
-  return response.data;
-};
-
-/**
  * Get problem stats
  * GET /api/problems/:id/stats
  */
-export const getProblemStats = async (id: string): Promise<ApiResponse<any>> => {
-  const response = await apiClient.get<ApiResponse<any>>(`/problems/${id}/stats`);
+export const getProblemStats = async (id: string): Promise<ApiResponse<ProblemStats>> => {
+  const response = await apiClient.get<ApiResponse<ProblemStats>>(`/problems/${id}/stats`);
   return response.data;
 };
 
@@ -145,8 +156,8 @@ export const createProblem = async (problemData: CreateProblemRequest): Promise<
  * Bulk import problems (admin only)
  * POST /api/problems/bulk-import
  */
-export const bulkImportProblems = async (data: BulkImportRequest): Promise<ApiResponse<any>> => {
-  const response = await apiClient.post<ApiResponse<any>>('/problems/bulk-import', data);
+export const bulkImportProblems = async (data: BulkImportRequest): Promise<ApiResponse<BulkImportResult>> => {
+  const response = await apiClient.post<ApiResponse<BulkImportResult>>('/problems/bulk-import', data);
   return response.data;
 };
 

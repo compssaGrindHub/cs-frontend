@@ -86,7 +86,7 @@ export const getUserAttendance = async (
   params?: GetUserAttendanceParams
 ): Promise<Attendance[]> => {
   const response = await apiClient.get<ApiResponse<Attendance[]>>(`/attendance/user/${userId}`, { params });
-  return response.data.data;
+  return response.data.data || [];
 };
 
 /**
@@ -95,7 +95,7 @@ export const getUserAttendance = async (
  */
 export const getAttendanceStats = async (userId: string): Promise<AttendanceStats> => {
   const response = await apiClient.get<ApiResponse<AttendanceStats>>(`/attendance/stats/${userId}`);
-  return response.data.data;
+  return response.data.data || { totalDays: 0, presentDays: 0, absentDays: 0, percentage: 0, recentStreak: 0 };
 };
 
 export interface SessionAttendanceResponse {
