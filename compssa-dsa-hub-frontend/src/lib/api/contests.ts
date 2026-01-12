@@ -127,6 +127,10 @@ export const getContestStandings = async (
   return response.data;
 };
 
+/**
+ * Allow admins to evaluate contest once completed or in process, before users can see standings
+ * GET /api/contests/:id/evaluate
+ */
 export const evaluateContest = async (id: string): Promise<ApiResponse> => {
   const response = await apiClient.get<ApiResponse>(`/contests/${id}/evaluate`);
   return response.data;
