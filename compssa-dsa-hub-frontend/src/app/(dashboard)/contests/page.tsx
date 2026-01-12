@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { Button } from "@/components/ui/button";
@@ -30,9 +30,12 @@ import {
   getContests,
   getUserContests,
   registerForContest,
+  getContestStandings,
   Contest,
   ContestParticipation,
+  Standing,
 } from "@/lib/api";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loading } from "@/components/common/Loading";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Pagination } from "@/components/common/Pagination";
@@ -119,6 +122,9 @@ function getExternalContestUrl(
 type ContestStatus = "UPCOMING" | "LIVE" | "COMPLETED";
 type Platform = "LEETCODE" | "CODEFORCES" | "CUSTOM";
 type TabValue = "upcoming" | "my-contests" | "past";
+
+// In-memory cache for contest standings to avoid refetching
+const standingsCache = new Map<string, Standing[]>();
 
 // ============================================================================
 // MAIN COMPONENT
@@ -466,6 +472,7 @@ export default function ContestsPage() {
           onClose={() => setSelectedContest(null)}
           onRegister={() => registerMutation.mutate(selectedContest.id)}
           isRegistering={registerMutation.isPending}
+          currentUserId={userId}
         />
       )}
     </div>
@@ -674,12 +681,14 @@ function ContestOverlay({
   onClose,
   onRegister,
   isRegistering,
+  currentUserId,
 }: {
   contest: Contest;
   isRegistered: boolean;
   onClose: () => void;
   onRegister: () => void;
   isRegistering: boolean;
+  currentUserId: string | null;
 }) {
   const ended = hasContestEnded(contest.startTime, contest.duration);
   const live = isContestLive(contest.startTime, contest.duration);
@@ -688,20 +697,73 @@ function ContestOverlay({
     contest.externalId
   );
 
+  // Standings state
+  const [standings, setStandings] = useState<Standing[]>([]);
+  const [standingsLoading, setStandingsLoading] = useState(false);
+  const [standingsError, setStandingsError] = useState<string | null>(null);
+
+  // Fetch standings when overlay opens for ended contests
+  useEffect(() => {
+    if (!ended) return;
+
+    // Check cache first
+    const cached = standingsCache.get(contest.id);
+    if (cached) {
+      setStandings(cached);
+      return;
+    }
+
+    // Fetch standings
+    const fetchStandings = async () => {
+      setStandingsLoading(true);
+      setStandingsError(null);
+      try {
+        const response = await getContestStandings(contest.id);
+        const data = response.data || [];
+        setStandings(data);
+        // Cache the results
+        standingsCache.set(contest.id, data);
+      } catch (err) {
+        setStandingsError("Failed to load standings");
+        console.error("Error fetching standings:", err);
+      } finally {
+        setStandingsLoading(false);
+      }
+    };
+
+    fetchStandings();
+  }, [contest.id, ended]);
+
+  // Get medal emoji for top 3
+  const getMedalEmoji = (rank: number) => {
+    switch (rank) {
+      case 1:
+        return "🥇";
+      case 2:
+        return "🥈";
+      case 3:
+        return "🥉";
+      default:
+        return null;
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
       <Card
-        className="bg-card border-border max-w-lg w-full max-h-[90vh] overflow-y-auto"
+        className={`bg-card border-border w-full max-h-[90vh] overflow-y-auto ${
+          ended ? "max-w-3xl" : "max-w-lg"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         <CardContent className="p-6 space-y-6">
           {/* Header */}
           <div className="flex items-start justify-between">
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge className="bg-primary/20 text-primary border-0">
                   {contest.platform}
                 </Badge>
@@ -729,7 +791,7 @@ function ContestOverlay({
               variant="ghost"
               size="icon"
               onClick={onClose}
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground flex-shrink-0"
             >
               <X className="w-5 h-5" />
             </Button>
@@ -785,17 +847,144 @@ function ContestOverlay({
                 </div>
               </div>
             )}
-
-            {/* Description if available */}
-            {/* {contest.description && (
-              <div className="p-3 bg-muted/30 rounded-lg">
-                <div className="text-xs text-muted-foreground mb-1">
-                  Description
-                </div>
-                <p className="text-sm text-foreground">{contest.description}</p>
-              </div>
-            )} */}
           </div>
+
+          {/* Standings Table for Ended Contests */}
+          {ended && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-yellow-500" />
+                <h3 className="text-lg font-semibold text-foreground">
+                  Final Standings
+                </h3>
+              </div>
+
+              {standingsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loading size="md" label="Loading standings..." />
+                </div>
+              ) : standingsError ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  {standingsError}
+                </div>
+              ) : standings.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No standings available yet
+                </div>
+              ) : (
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          Rank
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          User
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          Solved
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          Points
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          Rating Δ
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {standings.map((standing) => {
+                        const isCurrentUser =
+                          currentUserId && standing.user.id === currentUserId;
+                        const medal = getMedalEmoji(standing.rank);
+
+                        return (
+                          <tr
+                            key={standing.user.id}
+                            className={`${
+                              isCurrentUser
+                                ? "bg-primary/10 border-l-2 border-l-primary"
+                                : "hover:bg-muted/30"
+                            } transition-colors`}
+                          >
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`text-sm font-medium ${
+                                    standing.rank <= 3
+                                      ? "text-foreground"
+                                      : "text-muted-foreground"
+                                  }`}
+                                >
+                                  {standing.rank}
+                                </span>
+                                {medal && (
+                                  <span className="text-lg">{medal}</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarImage
+                                    src={standing.user.profilePicture}
+                                  />
+                                  <AvatarFallback className="text-xs">
+                                    {standing.user.username
+                                      .slice(0, 2)
+                                      .toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span
+                                  className={`text-sm font-medium ${
+                                    isCurrentUser
+                                      ? "text-primary"
+                                      : "text-foreground"
+                                  }`}
+                                >
+                                  {standing.user.username}
+                                  {isCurrentUser && (
+                                    <span className="ml-2 text-xs text-primary">
+                                      (You)
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              <span className="text-sm text-foreground">
+                                {standing.problemsSolved}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              <span className="text-sm font-medium text-foreground">
+                                {standing.totalPoints.toLocaleString()}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              <span
+                                className={`text-sm font-medium ${
+                                  standing.ratingChange > 0
+                                    ? "text-green-500"
+                                    : standing.ratingChange < 0
+                                    ? "text-red-500"
+                                    : "text-muted-foreground"
+                                }`}
+                              >
+                                {standing.ratingChange > 0 ? "+" : ""}
+                                {standing.ratingChange}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex items-center gap-3 pt-2">
@@ -821,13 +1010,6 @@ function ContestOverlay({
                 disabled={isRegistering}
               >
                 {isRegistering ? "Registering..." : "Register"}
-              </Button>
-            )}
-
-            {ended && (
-              <Button variant="outline" className="flex-1" disabled>
-                <Trophy className="w-4 h-4 mr-2" />
-                View Standings (Coming Soon)
               </Button>
             )}
           </div>
