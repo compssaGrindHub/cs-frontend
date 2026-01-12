@@ -127,6 +127,11 @@ export const getContestStandings = async (
   return response.data;
 };
 
+export const evaluateContest = async (id: string): Promise<ApiResponse> => {
+  const response = await apiClient.get<ApiResponse>(`/contests/${id}/evaluate`);
+  return response.data;
+};
+
 /**
  * Register for contest
  * POST /api/contests/:id/register
