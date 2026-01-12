@@ -754,12 +754,14 @@ function ContestOverlay({
       onClick={onClose}
     >
       <Card
-        className={`bg-card border-border w-full max-h-[90vh] overflow-y-auto ${
-          ended ? "max-w-3xl" : "max-w-lg"
+        className={`bg-card border-border w-full overflow-hidden ${
+          ended ? "max-w-3xl h-[85vh]" : "max-w-lg"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <CardContent className="p-6 space-y-6">
+        <CardContent
+          className={`p-6 flex flex-col ${ended ? "h-full" : "space-y-6"}`}
+        >
           {/* Header */}
           <div className="flex items-start justify-between">
             <div className="space-y-2">
@@ -798,61 +800,65 @@ function ContestOverlay({
           </div>
 
           {/* Contest Details */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                <Calendar className="w-5 h-5 text-primary" />
-                <div>
-                  <div className="text-xs text-muted-foreground">
-                    Start Time
+          <div className={ended ? "flex-shrink-0 mt-4" : ""}>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                  <Calendar className="w-5 h-5 text-primary" />
+                  <div>
+                    <div className="text-xs text-muted-foreground">
+                      Start Time
+                    </div>
+                    <div className="text-sm font-medium text-foreground">
+                      {new Date(contest.startTime).toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(contest.startTime).toLocaleTimeString("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
                   </div>
-                  <div className="text-sm font-medium text-foreground">
-                    {new Date(contest.startTime).toLocaleDateString("en-US", {
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {new Date(contest.startTime).toLocaleTimeString("en-US", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                  <Clock className="w-5 h-5 text-primary" />
+                  <div>
+                    <div className="text-xs text-muted-foreground">
+                      Duration
+                    </div>
+                    <div className="text-sm font-medium text-foreground">
+                      {formatDuration(contest.duration)}
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                <Clock className="w-5 h-5 text-primary" />
-                <div>
-                  <div className="text-xs text-muted-foreground">Duration</div>
-                  <div className="text-sm font-medium text-foreground">
-                    {formatDuration(contest.duration)}
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Participants */}
-            {contest.participantCount > 0 && (
-              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                <Users className="w-5 h-5 text-primary" />
-                <div>
-                  <div className="text-xs text-muted-foreground">
-                    Participants
-                  </div>
-                  <div className="text-sm font-medium text-foreground">
-                    {contest.participantCount.toLocaleString()} registered
+              {/* Participants */}
+              {contest.participantCount > 0 && (
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                  <Users className="w-5 h-5 text-primary" />
+                  <div>
+                    <div className="text-xs text-muted-foreground">
+                      Participants
+                    </div>
+                    <div className="text-sm font-medium text-foreground">
+                      {contest.participantCount.toLocaleString()} registered
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Standings Table for Ended Contests */}
           {ended && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
+            <div className="flex-1 flex flex-col min-h-0 mt-4">
+              <div className="flex items-center gap-2 flex-shrink-0 mb-3">
                 <Trophy className="w-5 h-5 text-yellow-500" />
                 <h3 className="text-lg font-semibold text-foreground">
                   Final Standings
@@ -860,134 +866,140 @@ function ContestOverlay({
               </div>
 
               {standingsLoading ? (
-                <div className="flex items-center justify-center py-8">
+                <div className="flex items-center justify-center py-8 flex-1">
                   <Loading size="md" label="Loading standings..." />
                 </div>
               ) : standingsError ? (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-muted-foreground flex-1">
                   {standingsError}
                 </div>
               ) : standings.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-muted-foreground flex-1">
                   No standings available yet
                 </div>
               ) : (
-                <div className="border border-border rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-muted/50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          Rank
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          User
-                        </th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          Solved
-                        </th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          Points
-                        </th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          Rating Δ
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {standings.map((standing) => {
-                        const isCurrentUser =
-                          currentUserId && standing.user.id === currentUserId;
-                        const medal = getMedalEmoji(standing.rank);
+                <div className="border border-border rounded-lg overflow-hidden flex-1 flex flex-col min-h-0">
+                  <div className="overflow-y-auto flex-1">
+                    <table className="w-full">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            Rank
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            User
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            Solved
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            Points
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            Rating Δ
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {standings.map((standing) => {
+                          const isCurrentUser =
+                            currentUserId && standing.user.id === currentUserId;
+                          const medal = getMedalEmoji(standing.rank);
 
-                        return (
-                          <tr
-                            key={standing.user.id}
-                            className={`${
-                              isCurrentUser
-                                ? "bg-primary/10 border-l-2 border-l-primary"
-                                : "hover:bg-muted/30"
-                            } transition-colors`}
-                          >
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <div className="flex items-center gap-2">
+                          return (
+                            <tr
+                              key={standing.user.id}
+                              className={`${
+                                isCurrentUser
+                                  ? "bg-primary/10 border-l-2 border-l-primary"
+                                  : "hover:bg-muted/30"
+                              } transition-colors`}
+                            >
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`text-sm font-medium ${
+                                      standing.rank <= 3
+                                        ? "text-foreground"
+                                        : "text-muted-foreground"
+                                    }`}
+                                  >
+                                    {standing.rank}
+                                  </span>
+                                  {medal && (
+                                    <span className="text-lg">{medal}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarImage
+                                      src={standing.user.profilePicture}
+                                    />
+                                    <AvatarFallback className="text-xs">
+                                      {standing.user.username
+                                        .slice(0, 2)
+                                        .toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span
+                                    className={`text-sm font-medium ${
+                                      isCurrentUser
+                                        ? "text-primary"
+                                        : "text-foreground"
+                                    }`}
+                                  >
+                                    {standing.user.username}
+                                    {isCurrentUser && (
+                                      <span className="ml-2 text-xs text-primary">
+                                        (You)
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-center">
+                                <span className="text-sm text-foreground">
+                                  {standing.problemsSolved}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-center">
+                                <span className="text-sm font-medium text-foreground">
+                                  {standing.totalPoints.toLocaleString()}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-center">
                                 <span
                                   className={`text-sm font-medium ${
-                                    standing.rank <= 3
-                                      ? "text-foreground"
+                                    standing.ratingChange > 0
+                                      ? "text-green-500"
+                                      : standing.ratingChange < 0
+                                      ? "text-red-500"
                                       : "text-muted-foreground"
                                   }`}
                                 >
-                                  {standing.rank}
+                                  {standing.ratingChange > 0 ? "+" : ""}
+                                  {standing.ratingChange}
                                 </span>
-                                {medal && (
-                                  <span className="text-lg">{medal}</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarImage
-                                    src={standing.user.profilePicture}
-                                  />
-                                  <AvatarFallback className="text-xs">
-                                    {standing.user.username
-                                      .slice(0, 2)
-                                      .toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span
-                                  className={`text-sm font-medium ${
-                                    isCurrentUser
-                                      ? "text-primary"
-                                      : "text-foreground"
-                                  }`}
-                                >
-                                  {standing.user.username}
-                                  {isCurrentUser && (
-                                    <span className="ml-2 text-xs text-primary">
-                                      (You)
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-center">
-                              <span className="text-sm text-foreground">
-                                {standing.problemsSolved}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-center">
-                              <span className="text-sm font-medium text-foreground">
-                                {standing.totalPoints.toLocaleString()}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-center">
-                              <span
-                                className={`text-sm font-medium ${
-                                  standing.ratingChange > 0
-                                    ? "text-green-500"
-                                    : standing.ratingChange < 0
-                                    ? "text-red-500"
-                                    : "text-muted-foreground"
-                                }`}
-                              >
-                                {standing.ratingChange > 0 ? "+" : ""}
-                                {standing.ratingChange}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
           )}
 
           {/* Actions */}
-          <div className="flex items-center gap-3 pt-2">
+          <div
+            className={`flex items-center gap-3 ${
+              ended ? "flex-shrink-0 mt-4" : "pt-2"
+            }`}
+          >
             {externalUrl && (
               <Button
                 className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
