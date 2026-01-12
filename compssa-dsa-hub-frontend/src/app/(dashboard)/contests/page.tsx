@@ -71,6 +71,12 @@ function formatDate(dateString: string) {
   };
 }
 
+// Check if contest has ended (startTime + duration has passed)
+function hasContestEnded(startTime: string, durationMinutes: number): boolean {
+  const endTime = new Date(startTime).getTime() + durationMinutes * 60 * 1000;
+  return Date.now() > endTime;
+}
+
 type ContestStatus = "UPCOMING" | "LIVE" | "COMPLETED";
 type Platform = "LEETCODE" | "CODEFORCES" | "CUSTOM";
 type TabValue = "upcoming" | "my-contests" | "past";
@@ -463,7 +469,11 @@ function FeaturedContestCard({
               </span>
             </div>
             <div className="flex gap-3 pt-2">
-              {isRegistered ? (
+              {hasContestEnded(contest.startTime, contest.duration) ? (
+                <Badge className="bg-muted text-muted-foreground border-0 px-4 py-2">
+                  Ended
+                </Badge>
+              ) : isRegistered ? (
                 <Badge className="bg-green-500/20 text-green-400 border-0 px-4 py-2">
                   ✓ Registered
                 </Badge>
@@ -568,7 +578,11 @@ function ContestCard({
 
           {/* Action Button */}
           <div className="flex-shrink-0">
-            {isRegistered ? (
+            {hasContestEnded(contest.startTime, contest.duration) ? (
+              <Badge className="bg-muted text-muted-foreground border-0 px-4 py-2">
+                Ended
+              </Badge>
+            ) : isRegistered ? (
               <Badge className="bg-green-500/20 text-green-500 border-0 px-4 py-2">
                 ✓ Registered
               </Badge>
