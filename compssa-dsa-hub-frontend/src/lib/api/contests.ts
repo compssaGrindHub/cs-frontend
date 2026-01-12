@@ -1,14 +1,27 @@
-import apiClient from './client';
-import { ApiResponse } from '@/lib/types/api';
-import { Contest, ContestDetail, Standing } from '@/lib/types/contest';
+import apiClient from "./client";
+import { ApiResponse } from "@/lib/types/api";
+import { Contest, ContestDetail, Standing } from "@/lib/types/contest";
 
 // Export types for use in components
 export type { Contest, ContestDetail, Standing };
 
+// Contest participation type returned by getUserContests
+export interface ContestParticipation {
+  id: string;
+  createdAt: string;
+  userId: string;
+  contestId: string;
+  rank: number;
+  ratingChange: number;
+  problemsSolved: number;
+  totalPoints: number;
+  contest: Contest;
+}
+
 // Request types
 interface CreateContestRequest {
   name: string;
-  platform: 'LEETCODE' | 'CODEFORCES' | 'CUSTOM';
+  platform: "LEETCODE" | "CODEFORCES" | "CUSTOM";
   externalId?: string;
   startTime: string;
   duration: number;
@@ -18,7 +31,7 @@ interface CreateContestRequest {
 
 interface UpdateContestRequest {
   name?: string;
-  platform?: 'LEETCODE' | 'CODEFORCES' | 'CUSTOM';
+  platform?: "LEETCODE" | "CODEFORCES" | "CUSTOM";
   externalId?: string;
   startTime?: string;
   duration?: number;
@@ -29,8 +42,8 @@ interface UpdateContestRequest {
 interface GetContestsParams {
   page?: number;
   limit?: number;
-  status?: 'UPCOMING' | 'LIVE' | 'COMPLETED';
-  platform?: 'LEETCODE' | 'CODEFORCES' | 'CUSTOM';
+  status?: "UPCOMING" | "LIVE" | "COMPLETED";
+  platform?: "LEETCODE" | "CODEFORCES" | "CUSTOM";
 }
 
 interface PaginatedContestsResponse {
@@ -49,8 +62,12 @@ interface PaginatedContestsResponse {
  * Get all contests with filters
  * GET /api/contests
  */
-export const getContests = async (params?: GetContestsParams): Promise<PaginatedContestsResponse> => {
-  const response = await apiClient.get<PaginatedContestsResponse>('/contests', { params });
+export const getContests = async (
+  params?: GetContestsParams
+): Promise<PaginatedContestsResponse> => {
+  const response = await apiClient.get<PaginatedContestsResponse>("/contests", {
+    params,
+  });
   return response.data;
 };
 
@@ -58,34 +75,42 @@ export const getContests = async (params?: GetContestsParams): Promise<Paginated
  * Get upcoming contests
  * GET /api/contests/upcoming
  */
-export const getUpcomingContests = async (limit?: number): Promise<Contest[]> => {
-  const response = await apiClient.get<ApiResponse<Contest[]>>('/contests/upcoming', {
-    params: { limit },
-  });
+export const getUpcomingContests = async (
+  limit?: number
+): Promise<Contest[]> => {
+  const response = await apiClient.get<ApiResponse<Contest[]>>(
+    "/contests/upcoming",
+    {
+      params: { limit },
+    }
+  );
   return response.data.data || [];
 };
 
 /**
- * Get user contests
+ * Get user contests (participations)
  * GET /api/contests/user/:userId
+ * Returns participation objects with nested contest and contestId
  */
-export const getUserContests = async (userId: string): Promise<Contest[]> => {
-  const response = await apiClient.get<ApiResponse<Array<{ contest?: Contest } | Contest>>>(`/contests/user/${userId}`);
-  const data = response.data.data || [];
-  return data.map((p: { contest?: Contest } | Contest) => {
-    if (p && typeof p === 'object' && 'contest' in p && p.contest) {
-      return p.contest;
-    }
-    return p as Contest;
-  });
+export const getUserContests = async (
+  userId: string
+): Promise<ContestParticipation[]> => {
+  const response = await apiClient.get<ApiResponse<ContestParticipation[]>>(
+    `/contests/user/${userId}`
+  );
+  return response.data.data || [];
 };
 
 /**
  * Get contest by ID
  * GET /api/contests/:id
  */
-export const getContestById = async (id: string): Promise<ApiResponse<ContestDetail>> => {
-  const response = await apiClient.get<ApiResponse<ContestDetail>>(`/contests/${id}`);
+export const getContestById = async (
+  id: string
+): Promise<ApiResponse<ContestDetail>> => {
+  const response = await apiClient.get<ApiResponse<ContestDetail>>(
+    `/contests/${id}`
+  );
   return response.data;
 };
 
@@ -93,8 +118,12 @@ export const getContestById = async (id: string): Promise<ApiResponse<ContestDet
  * Get contest standings
  * GET /api/contests/:id/standings
  */
-export const getContestStandings = async (id: string): Promise<ApiResponse<Standing[]>> => {
-  const response = await apiClient.get<ApiResponse<Standing[]>>(`/contests/${id}/standings`);
+export const getContestStandings = async (
+  id: string
+): Promise<ApiResponse<Standing[]>> => {
+  const response = await apiClient.get<ApiResponse<Standing[]>>(
+    `/contests/${id}/standings`
+  );
   return response.data;
 };
 
@@ -102,17 +131,26 @@ export const getContestStandings = async (id: string): Promise<ApiResponse<Stand
  * Register for contest
  * POST /api/contests/:id/register
  */
-export const registerForContest = async (id: string): Promise<{ message: string }> => {
-  const response = await apiClient.post<ApiResponse<{ message: string }>>(`/contests/${id}/register`);
-  return response.data.data || { message: 'Registered successfully' };
+export const registerForContest = async (
+  id: string
+): Promise<{ message: string }> => {
+  const response = await apiClient.post<ApiResponse<{ message: string }>>(
+    `/contests/${id}/register`
+  );
+  return response.data.data || { message: "Registered successfully" };
 };
 
 /**
  * Create contest (admin only)
  * POST /api/contests
  */
-export const createContest = async (contestData: CreateContestRequest): Promise<ApiResponse<Contest>> => {
-  const response = await apiClient.post<ApiResponse<Contest>>('/contests', contestData);
+export const createContest = async (
+  contestData: CreateContestRequest
+): Promise<ApiResponse<Contest>> => {
+  const response = await apiClient.post<ApiResponse<Contest>>(
+    "/contests",
+    contestData
+  );
   return response.data;
 };
 
@@ -120,8 +158,12 @@ export const createContest = async (contestData: CreateContestRequest): Promise<
  * Sync contest standings (admin only)
  * POST /api/contests/:id/sync
  */
-export const syncContestStandings = async (id: string): Promise<ApiResponse<{ synced: boolean }>> => {
-  const response = await apiClient.post<ApiResponse<{ synced: boolean }>>(`/contests/${id}/sync`);
+export const syncContestStandings = async (
+  id: string
+): Promise<ApiResponse<{ synced: boolean }>> => {
+  const response = await apiClient.post<ApiResponse<{ synced: boolean }>>(
+    `/contests/${id}/sync`
+  );
   return response.data;
 };
 
@@ -129,8 +171,14 @@ export const syncContestStandings = async (id: string): Promise<ApiResponse<{ sy
  * Update contest (admin only)
  * PUT /api/contests/:id
  */
-export const updateContest = async (id: string, contestData: UpdateContestRequest): Promise<ApiResponse<Contest>> => {
-  const response = await apiClient.put<ApiResponse<Contest>>(`/contests/${id}`, contestData);
+export const updateContest = async (
+  id: string,
+  contestData: UpdateContestRequest
+): Promise<ApiResponse<Contest>> => {
+  const response = await apiClient.put<ApiResponse<Contest>>(
+    `/contests/${id}`,
+    contestData
+  );
   return response.data;
 };
 
@@ -142,4 +190,3 @@ export const deleteContest = async (id: string): Promise<ApiResponse<void>> => {
   const response = await apiClient.delete<ApiResponse<void>>(`/contests/${id}`);
   return response.data;
 };
-
