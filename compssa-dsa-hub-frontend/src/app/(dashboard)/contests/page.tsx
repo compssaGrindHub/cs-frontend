@@ -7,7 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Calendar, Clock, Search, BarChart3, CheckCircle2 } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  Search,
+  BarChart3,
+  CheckCircle2,
+  X,
+  ExternalLink,
+  Users,
+  Trophy,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -77,6 +87,35 @@ function hasContestEnded(startTime: string, durationMinutes: number): boolean {
   return Date.now() > endTime;
 }
 
+// Check if contest has started
+function hasContestStarted(startTime: string): boolean {
+  return Date.now() >= new Date(startTime).getTime();
+}
+
+// Check if contest is currently live
+function isContestLive(startTime: string, durationMinutes: number): boolean {
+  return (
+    hasContestStarted(startTime) && !hasContestEnded(startTime, durationMinutes)
+  );
+}
+
+// Get external contest URL based on platform
+function getExternalContestUrl(
+  platform: string,
+  externalId?: string
+): string | null {
+  if (!externalId) return null;
+
+  switch (platform.toUpperCase()) {
+    case "CODEFORCES":
+      return `https://codeforces.com/contest/${externalId}`;
+    case "LEETCODE":
+      return `https://leetcode.com/contest/${externalId}`;
+    default:
+      return null;
+  }
+}
+
 type ContestStatus = "UPCOMING" | "LIVE" | "COMPLETED";
 type Platform = "LEETCODE" | "CODEFORCES" | "CUSTOM";
 type TabValue = "upcoming" | "my-contests" | "past";
@@ -97,6 +136,9 @@ export default function ContestsPage() {
   const [optimisticallyRegistered, setOptimisticallyRegistered] = useState<
     Set<string>
   >(new Set());
+
+  // Selected contest for overlay
+  const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
 
   // Extract user ID (handles both normal and corrupted store data)
   const userId = useMemo(() => extractUserId(user), [user]);
@@ -393,6 +435,7 @@ export default function ContestsPage() {
                       isRegistered={registeredContestIds.has(contest.id)}
                       onRegister={() => registerMutation.mutate(contest.id)}
                       isRegistering={registerMutation.isPending}
+                      onClick={() => setSelectedContest(contest)}
                     />
                   ))}
                 </div>
@@ -414,6 +457,17 @@ export default function ContestsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Contest Detail Overlay */}
+      {selectedContest && (
+        <ContestOverlay
+          contest={selectedContest}
+          isRegistered={registeredContestIds.has(selectedContest.id)}
+          onClose={() => setSelectedContest(null)}
+          onRegister={() => registerMutation.mutate(selectedContest.id)}
+          isRegistering={registerMutation.isPending}
+        />
+      )}
     </div>
   );
 }
@@ -518,16 +572,21 @@ function ContestCard({
   isRegistered,
   onRegister,
   isRegistering,
+  onClick,
 }: {
   contest: Contest;
   isRegistered: boolean;
   onRegister: () => void;
   isRegistering: boolean;
+  onClick?: () => void;
 }) {
   const date = formatDate(contest.startTime);
 
   return (
-    <Card className="bg-card border-border hover:border-primary/50 transition-colors">
+    <Card
+      className="bg-card border-border hover:border-primary/50 transition-colors cursor-pointer"
+      onClick={onClick}
+    >
       <CardContent className="p-5">
         <div className="flex items-center gap-4">
           {/* Date Badge */}
@@ -589,7 +648,10 @@ function ContestCard({
             ) : contest.status === "UPCOMING" ? (
               <Button
                 className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                onClick={onRegister}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRegister();
+                }}
                 disabled={isRegistering}
               >
                 {isRegistering ? "Registering..." : "Register"}
@@ -603,5 +665,174 @@ function ContestCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ContestOverlay({
+  contest,
+  isRegistered,
+  onClose,
+  onRegister,
+  isRegistering,
+}: {
+  contest: Contest;
+  isRegistered: boolean;
+  onClose: () => void;
+  onRegister: () => void;
+  isRegistering: boolean;
+}) {
+  const ended = hasContestEnded(contest.startTime, contest.duration);
+  const live = isContestLive(contest.startTime, contest.duration);
+  const externalUrl = getExternalContestUrl(
+    contest.platform,
+    contest.externalId
+  );
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <Card
+        className="bg-card border-border max-w-lg w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <CardContent className="p-6 space-y-6">
+          {/* Header */}
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Badge className="bg-primary/20 text-primary border-0">
+                  {contest.platform}
+                </Badge>
+                {live && (
+                  <Badge className="bg-red-500/20 text-red-400 border-0">
+                    🔴 Live
+                  </Badge>
+                )}
+                {ended && (
+                  <Badge className="bg-muted text-muted-foreground border-0">
+                    Ended
+                  </Badge>
+                )}
+                {isRegistered && !ended && (
+                  <Badge className="bg-green-500/20 text-green-400 border-0">
+                    ✓ Registered
+                  </Badge>
+                )}
+              </div>
+              <h2 className="text-xl font-bold text-foreground">
+                {contest.name}
+              </h2>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+
+          {/* Contest Details */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                <Calendar className="w-5 h-5 text-primary" />
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    Start Time
+                  </div>
+                  <div className="text-sm font-medium text-foreground">
+                    {new Date(contest.startTime).toLocaleDateString("en-US", {
+                      weekday: "short",
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {new Date(contest.startTime).toLocaleTimeString("en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                <Clock className="w-5 h-5 text-primary" />
+                <div>
+                  <div className="text-xs text-muted-foreground">Duration</div>
+                  <div className="text-sm font-medium text-foreground">
+                    {formatDuration(contest.duration)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Participants */}
+            {contest.participantCount > 0 && (
+              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                <Users className="w-5 h-5 text-primary" />
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    Participants
+                  </div>
+                  <div className="text-sm font-medium text-foreground">
+                    {contest.participantCount.toLocaleString()} registered
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Description if available */}
+            {/* {contest.description && (
+              <div className="p-3 bg-muted/30 rounded-lg">
+                <div className="text-xs text-muted-foreground mb-1">
+                  Description
+                </div>
+                <p className="text-sm text-foreground">{contest.description}</p>
+              </div>
+            )} */}
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-3 pt-2">
+            {externalUrl && (
+              <Button
+                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                onClick={() => window.open(externalUrl, "_blank")}
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Open on {contest.platform}
+              </Button>
+            )}
+
+            {!ended && !isRegistered && (
+              <Button
+                variant={externalUrl ? "outline" : "default"}
+                className={
+                  externalUrl
+                    ? "flex-1"
+                    : "flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                }
+                onClick={onRegister}
+                disabled={isRegistering}
+              >
+                {isRegistering ? "Registering..." : "Register"}
+              </Button>
+            )}
+
+            {ended && (
+              <Button variant="outline" className="flex-1" disabled>
+                <Trophy className="w-4 h-4 mr-2" />
+                View Standings (Coming Soon)
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
