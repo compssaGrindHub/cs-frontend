@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useTheme } from 'next-themes';
-import { useSearchParams } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuthStore } from '@/lib/stores/authStore';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Switch } from '@/components/ui/switch';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useEffect, useState, useMemo } from "react";
+import { useTheme } from "next-themes";
+import { useSearchParams } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/lib/stores/authStore";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Lock,
   Zap,
@@ -24,13 +24,13 @@ import {
   Trash2,
   ExternalLink,
   User as UserIcon,
-} from 'lucide-react';
-import { updateUser, getCurrentUser } from '@/lib/api';
-import { changePassword } from '@/lib/api/auth';
-import { connectGitHub } from '@/lib/api/github';
-import { toast } from 'sonner';
-import { Loading } from '@/components/common/Loading';
-import { User } from '@/lib/types/user';
+} from "lucide-react";
+import { updateUser, getCurrentUser } from "@/lib/api";
+import { changePassword } from "@/lib/api/auth";
+import { connectGitHub } from "@/lib/api/github";
+import { toast } from "sonner";
+import { Loading } from "@/components/common/Loading";
+import { User } from "@/lib/types/user";
 import {
   Dialog,
   DialogContent,
@@ -38,54 +38,158 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 
-type SettingsTab = 'profile' | 'account' | 'integrations' | 'notifications' | 'appearance';
+type SettingsTab =
+  | "profile"
+  | "account"
+  | "integrations"
+  | "notifications"
+  | "appearance";
 
-const settingsTabs: { id: SettingsTab; name: string; icon: React.ReactNode }[] = [
-  { id: 'profile', name: 'Profile', icon: <UserIcon className="w-4 h-4" /> },
-  { id: 'account', name: 'Account', icon: <Lock className="w-4 h-4" /> },
-  { id: 'integrations', name: 'Integrations', icon: <Zap className="w-4 h-4" /> },
-  { id: 'notifications', name: 'Notifications', icon: <Bell className="w-4 h-4" /> },
-  { id: 'appearance', name: 'Appearance', icon: <Palette className="w-4 h-4" /> },
+const settingsTabs: { id: SettingsTab; name: string; icon: React.ReactNode }[] =
+  [
+    { id: "profile", name: "Profile", icon: <UserIcon className="w-4 h-4" /> },
+    { id: "account", name: "Account", icon: <Lock className="w-4 h-4" /> },
+    {
+      id: "integrations",
+      name: "Integrations",
+      icon: <Zap className="w-4 h-4" />,
+    },
+    {
+      id: "notifications",
+      name: "Notifications",
+      icon: <Bell className="w-4 h-4" />,
+    },
+    {
+      id: "appearance",
+      name: "Appearance",
+      icon: <Palette className="w-4 h-4" />,
+    },
+  ];
+
+type AccentId = "blue" | "purple" | "pink" | "red" | "orange" | "green";
+
+const accentOptions: {
+  id: AccentId;
+  label: string;
+  primary: string;
+  foreground: string;
+  ring?: string;
+  swatchClass: string;
+}[] = [
+  {
+    id: "blue",
+    label: "Blue",
+    primary: "221.2 83.2% 53.3%",
+    foreground: "210 40% 98%",
+    swatchClass: "bg-blue-600",
+  },
+  {
+    id: "purple",
+    label: "Purple",
+    primary: "262.1 83.3% 57.8%",
+    foreground: "210 40% 98%",
+    swatchClass: "bg-purple-600",
+  },
+  {
+    id: "pink",
+    label: "Pink",
+    primary: "330 81% 60%",
+    foreground: "210 40% 98%",
+    swatchClass: "bg-pink-500",
+  },
+  {
+    id: "red",
+    label: "Red",
+    primary: "0 84.2% 60.2%",
+    foreground: "210 40% 98%",
+    swatchClass: "bg-red-600",
+  },
+  {
+    id: "orange",
+    label: "Orange",
+    primary: "24.6 95% 53.1%",
+    foreground: "210 40% 98%",
+    swatchClass: "bg-orange-500",
+  },
+  {
+    id: "green",
+    label: "Green",
+    primary: "142.1 70.6% 45.3%",
+    foreground: "210 40% 98%",
+    swatchClass: "bg-green-600",
+  },
 ];
 
-type AccentId = 'blue' | 'purple' | 'pink' | 'red' | 'orange' | 'green';
+// Extract user from potentially corrupted store data
+// The store sometimes has {success: true, data: {...}} instead of just the user
+function extractUser(user: unknown): User | null {
+  if (!user) return null;
 
-const accentOptions: { id: AccentId; label: string; primary: string; foreground: string; ring?: string; swatchClass: string }[] = [
-  { id: 'blue', label: 'Blue', primary: '221.2 83.2% 53.3%', foreground: '210 40% 98%', swatchClass: 'bg-blue-600' },
-  { id: 'purple', label: 'Purple', primary: '262.1 83.3% 57.8%', foreground: '210 40% 98%', swatchClass: 'bg-purple-600' },
-  { id: 'pink', label: 'Pink', primary: '330 81% 60%', foreground: '210 40% 98%', swatchClass: 'bg-pink-500' },
-  { id: 'red', label: 'Red', primary: '0 84.2% 60.2%', foreground: '210 40% 98%', swatchClass: 'bg-red-600' },
-  { id: 'orange', label: 'Orange', primary: '24.6 95% 53.1%', foreground: '210 40% 98%', swatchClass: 'bg-orange-500' },
-  { id: 'green', label: 'Green', primary: '142.1 70.6% 45.3%', foreground: '210 40% 98%', swatchClass: 'bg-green-600' },
-];
+  // Normal case: user has id directly (proper User type)
+  if (
+    typeof user === "object" &&
+    "id" in user &&
+    "username" in user &&
+    typeof (user as User).id === "string"
+  ) {
+    return user as User;
+  }
+
+  // Corrupted case: user is wrapped in API response {success: true, data: {...}}
+  if (typeof user === "object" && "data" in user) {
+    const data = (user as { data: unknown }).data;
+    if (
+      typeof data === "object" &&
+      data &&
+      "id" in data &&
+      "username" in data
+    ) {
+      return data as User;
+    }
+  }
+
+  return null;
+}
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const searchParams = useSearchParams();
-  const { user: currentUser, setUser } = useAuthStore();
+  const { user: storeUser, setUser } = useAuthStore();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
+
+  // Extract valid user from potentially corrupted store data
+  const currentUser = useMemo(() => extractUser(storeUser), [storeUser]);
+  const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [showGithubDialog, setShowGithubDialog] = useState(false);
-  
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [profilePicture, setProfilePicture] = useState('');
-  const [codeforcesHandle, setCodeforcesHandle] = useState('');
-  const [leetcodeUsername, setLeetcodeUsername] = useState('');
-  const [githubUsername, setGithubUsername] = useState('');
-  const [githubRepo, setGithubRepo] = useState('');
-  const [githubToken, setGithubToken] = useState('');
 
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [profilePicture, setProfilePicture] = useState("");
+  const [codeforcesHandle, setCodeforcesHandle] = useState("");
+  const [leetcodeUsername, setLeetcodeUsername] = useState("");
+  const [githubUsername, setGithubUsername] = useState("");
+  const [githubRepo, setGithubRepo] = useState("");
+  const [githubToken, setGithubToken] = useState("");
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
-    const tab = searchParams.get('tab') as SettingsTab;
-    if (tab && ['profile', 'account', 'integrations', 'notifications', 'appearance'].includes(tab)) {
+    const tab = searchParams.get("tab") as SettingsTab;
+    if (
+      tab &&
+      [
+        "profile",
+        "account",
+        "integrations",
+        "notifications",
+        "appearance",
+      ].includes(tab)
+    ) {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -96,28 +200,31 @@ export default function SettingsPage() {
     streakReminder: false,
   });
 
-  const [accent, setAccent] = useState<AccentId>('blue');
+  const [accent, setAccent] = useState<AccentId>("blue");
 
   const { data: userData, isLoading: userLoading } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: ["currentUser"],
     queryFn: () => getCurrentUser(),
     enabled: !!currentUser,
   });
 
-  useEffect(() => {
-    if (userData?.data) {
-      const user = userData.data;
-      setFirstName(user.firstName || '');
-      setLastName(user.lastName || '');
-      setProfilePicture(user.profilePicture || '');
-      setCodeforcesHandle(user.codeforcesHandle || '');
-      setLeetcodeUsername(user.leetcodeUsername || '');
-      setGithubUsername(user.githubUsername || '');
-      setGithubRepo(user.githubRepo || '');
-    }
-  }, [userData?.data]);
+  // Extract user from API response (also handle potential corrupted response)
+  const apiUser = useMemo(() => extractUser(userData?.data), [userData?.data]);
 
-  const user = currentUser || userData?.data;
+  // Combined user: prefer store user, fallback to API user
+  const user: User | null = currentUser || apiUser;
+
+  useEffect(() => {
+    if (user) {
+      setFirstName(user.firstName || "");
+      setLastName(user.lastName || "");
+      setProfilePicture(user.profilePicture || "");
+      setCodeforcesHandle(user.codeforcesHandle || "");
+      setLeetcodeUsername(user.leetcodeUsername || "");
+      setGithubUsername(user.githubUsername || "");
+      setGithubRepo(user.githubRepo || "");
+    }
+  }, [user]);
 
   const updateProfileMutation = useMutation({
     mutationFn: (data: {
@@ -131,48 +238,51 @@ export default function SettingsPage() {
       if (updatedUser.data) {
         setUser(updatedUser.data);
       }
-      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
-      toast.success('Profile updated successfully');
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      toast.success("Profile updated successfully");
     },
     onError: (error: { response?: { data?: { error?: string } } }) => {
-      toast.error(error.response?.data?.error || 'Failed to update profile');
+      toast.error(error.response?.data?.error || "Failed to update profile");
     },
   });
 
   const changePasswordMutation = useMutation({
-    mutationFn: (data: { currentPassword: string; newPassword: string }) => changePassword(data),
+    mutationFn: (data: { currentPassword: string; newPassword: string }) =>
+      changePassword(data),
     onSuccess: () => {
-      toast.success('Password changed successfully');
+      toast.success("Password changed successfully");
       setShowPasswordDialog(false);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     },
     onError: (error: { response?: { data?: { error?: string } } }) => {
-      toast.error(error.response?.data?.error || 'Failed to change password');
+      toast.error(error.response?.data?.error || "Failed to change password");
     },
   });
 
   const connectGithubMutation = useMutation({
     mutationFn: (data: { token: string; repo?: string }) => connectGitHub(data),
     onSuccess: (response: { data?: { repo?: string } }) => {
-      const repoName = response.data?.repo || 'cs-hub-solutions';
+      const repoName = response.data?.repo || "cs-hub-solutions";
       toast.success(`GitHub connected successfully! Repository: ${repoName}`);
-      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       setShowGithubDialog(false);
-      setGithubToken('');
+      setGithubToken("");
       if (user) {
         getCurrentUser().then((result) => {
           if (result.data) {
             setUser(result.data);
-            setGithubUsername(result.data.githubUsername || '');
-            setGithubRepo(result.data.githubRepo || '');
+            setGithubUsername(result.data.githubUsername || "");
+            setGithubRepo(result.data.githubRepo || "");
           }
         });
       }
     },
     onError: (error: { response?: { data?: { error?: string } } }) => {
-      toast.error(error.response?.data?.error || 'Failed to connect GitHub account');
+      toast.error(
+        error.response?.data?.error || "Failed to connect GitHub account"
+      );
     },
   });
 
@@ -180,14 +290,19 @@ export default function SettingsPage() {
     if (!user) return;
 
     const updateData: Record<string, string | undefined> = {};
-    if (firstName !== (user.firstName || '')) updateData.firstName = firstName || undefined;
-    if (lastName !== (user.lastName || '')) updateData.lastName = lastName || undefined;
-    if (profilePicture !== (user.profilePicture || '')) updateData.profilePicture = profilePicture || undefined;
-    if (codeforcesHandle !== (user.codeforcesHandle || '')) updateData.codeforcesHandle = codeforcesHandle || undefined;
-    if (leetcodeUsername !== (user.leetcodeUsername || '')) updateData.leetcodeUsername = leetcodeUsername || undefined;
+    if (firstName !== (user.firstName || ""))
+      updateData.firstName = firstName || undefined;
+    if (lastName !== (user.lastName || ""))
+      updateData.lastName = lastName || undefined;
+    if (profilePicture !== (user.profilePicture || ""))
+      updateData.profilePicture = profilePicture || undefined;
+    if (codeforcesHandle !== (user.codeforcesHandle || ""))
+      updateData.codeforcesHandle = codeforcesHandle || undefined;
+    if (leetcodeUsername !== (user.leetcodeUsername || ""))
+      updateData.leetcodeUsername = leetcodeUsername || undefined;
 
     if (Object.keys(updateData).length === 0) {
-      toast.info('No changes to save');
+      toast.info("No changes to save");
       return;
     }
 
@@ -196,17 +311,17 @@ export default function SettingsPage() {
 
   const handleChangePassword = () => {
     if (!newPassword || !confirmPassword || !currentPassword) {
-      toast.error('Please fill in all password fields');
+      toast.error("Please fill in all password fields");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      toast.error('New passwords do not match');
+      toast.error("New passwords do not match");
       return;
     }
 
     if (newPassword.length < 8) {
-      toast.error('Password must be at least 8 characters');
+      toast.error("Password must be at least 8 characters");
       return;
     }
 
@@ -217,11 +332,12 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    const selected = accentOptions.find((option) => option.id === accent) ?? accentOptions[0];
+    const selected =
+      accentOptions.find((option) => option.id === accent) ?? accentOptions[0];
     const root = document.documentElement;
-    root.style.setProperty('--primary', selected.primary);
-    root.style.setProperty('--primary-foreground', selected.foreground);
-    root.style.setProperty('--ring', selected.ring ?? selected.primary);
+    root.style.setProperty("--primary", selected.primary);
+    root.style.setProperty("--primary-foreground", selected.foreground);
+    root.style.setProperty("--ring", selected.ring ?? selected.primary);
   }, [accent]);
 
   if (userLoading) {
@@ -236,7 +352,10 @@ export default function SettingsPage() {
     return null;
   }
 
-  const displayName = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.username;
+  const displayName =
+    user.firstName && user.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : user.username;
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -244,7 +363,9 @@ export default function SettingsPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-foreground mb-1">Settings</h1>
-          <p className="text-sm text-muted-foreground">Manage your profile, preferences, and account settings.</p>
+          <p className="text-sm text-muted-foreground">
+            Manage your profile, preferences, and account settings.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -258,8 +379,8 @@ export default function SettingsPage() {
                     onClick={() => setActiveTab(tab.id)}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm font-medium ${
                       activeTab === tab.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     }`}
                   >
                     {tab.icon}
@@ -273,12 +394,14 @@ export default function SettingsPage() {
           {/* Main Content */}
           <div className="lg:col-span-3">
             {/* Profile Tab */}
-            {activeTab === 'profile' && (
+            {activeTab === "profile" && (
               <div className="space-y-6">
                 {/* Public Profile */}
                 <Card className="bg-card border-border">
                   <CardContent className="p-6">
-                    <h2 className="text-lg font-semibold text-foreground mb-4">Public Profile</h2>
+                    <h2 className="text-lg font-semibold text-foreground mb-4">
+                      Public Profile
+                    </h2>
                     <p className="text-sm text-muted-foreground mb-4">
                       This information will be displayed on your public profile.
                     </p>
@@ -287,33 +410,40 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-4 mb-6">
                       <Avatar className="w-20 h-20 border-2 border-primary">
                         <AvatarImage
-                          src={profilePicture || user.profilePicture || undefined}
+                          src={
+                            profilePicture || user.profilePicture || undefined
+                          }
                           alt="Avatar"
                         />
                         <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                          {displayName[0]?.toUpperCase() || user.username[0]?.toUpperCase()}
+                          {displayName[0]?.toUpperCase() ||
+                            user.username[0]?.toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           className="mb-2"
                           onClick={() => {
-                            const url = prompt('Enter profile picture URL:');
+                            const url = prompt("Enter profile picture URL:");
                             if (url) setProfilePicture(url);
                           }}
                         >
                           <Upload className="w-4 h-4 mr-2" />
                           Change Avatar
                         </Button>
-                        <p className="text-xs text-muted-foreground">Recommended: 400x400px, JPG, PNG or GIF.</p>
+                        <p className="text-xs text-muted-foreground">
+                          Recommended: 400x400px, JPG, PNG or GIF.
+                        </p>
                       </div>
                     </div>
 
                     {/* Form Fields */}
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-foreground mb-2 block text-sm">First Name</Label>
+                        <Label className="text-foreground mb-2 block text-sm">
+                          First Name
+                        </Label>
                         <Input
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
@@ -323,7 +453,9 @@ export default function SettingsPage() {
                       </div>
 
                       <div>
-                        <Label className="text-foreground mb-2 block text-sm">Last Name</Label>
+                        <Label className="text-foreground mb-2 block text-sm">
+                          Last Name
+                        </Label>
                         <Input
                           value={lastName}
                           onChange={(e) => setLastName(e.target.value)}
@@ -333,7 +465,9 @@ export default function SettingsPage() {
                       </div>
 
                       <div>
-                        <Label className="text-foreground mb-2 block text-sm">Username</Label>
+                        <Label className="text-foreground mb-2 block text-sm">
+                          Username
+                        </Label>
                         <div className="flex items-center gap-2">
                           <span className="text-primary font-semibold">@</span>
                           <Input
@@ -342,16 +476,20 @@ export default function SettingsPage() {
                             className="bg-muted border-border text-muted-foreground"
                           />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">Username cannot be changed</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Username cannot be changed
+                        </p>
                       </div>
                     </div>
 
-                    <Button 
+                    <Button
                       className="mt-6 bg-primary hover:bg-primary/90 text-primary-foreground"
                       onClick={handleSaveProfile}
                       disabled={updateProfileMutation.isPending}
                     >
-                      {updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}
+                      {updateProfileMutation.isPending
+                        ? "Saving..."
+                        : "Save Changes"}
                     </Button>
                   </CardContent>
                 </Card>
@@ -359,9 +497,12 @@ export default function SettingsPage() {
                 {/* Platform Integrations */}
                 <Card className="bg-card border-border">
                   <CardContent className="p-6">
-                    <h2 className="text-lg font-semibold text-foreground mb-4">Platform Integrations</h2>
+                    <h2 className="text-lg font-semibold text-foreground mb-4">
+                      Platform Integrations
+                    </h2>
                     <p className="text-sm text-muted-foreground mb-6">
-                      Connect your coding accounts to sync stats and verify achievements.
+                      Connect your coding accounts to sync stats and verify
+                      achievements.
                     </p>
 
                     <div className="space-y-4">
@@ -369,30 +510,38 @@ export default function SettingsPage() {
                       <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded bg-yellow-500/20 flex items-center justify-center">
-                            <span className="text-yellow-600 dark:text-yellow-500 font-bold">L</span>
+                            <span className="text-yellow-600 dark:text-yellow-500 font-bold">
+                              L
+                            </span>
                           </div>
                           <div>
-                            <p className="text-foreground font-medium">LeetCode</p>
+                            <p className="text-foreground font-medium">
+                              LeetCode
+                            </p>
                             <p className="text-xs text-muted-foreground">
-                              {leetcodeUsername ? `Connected as ${leetcodeUsername}` : 'Not connected'}
+                              {leetcodeUsername
+                                ? `Connected as ${leetcodeUsername}`
+                                : "Not connected"}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Input
                             value={leetcodeUsername}
-                            onChange={(e) => setLeetcodeUsername(e.target.value)}
+                            onChange={(e) =>
+                              setLeetcodeUsername(e.target.value)
+                            }
                             placeholder="LeetCode username"
                             className="w-40 bg-muted border-border text-foreground"
                           />
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={handleSaveProfile}
                             disabled={updateProfileMutation.isPending}
                           >
-                            {leetcodeUsername ? 'Update' : 'Connect'}
-                        </Button>
+                            {leetcodeUsername ? "Update" : "Connect"}
+                          </Button>
                         </div>
                       </div>
 
@@ -400,30 +549,38 @@ export default function SettingsPage() {
                       <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded bg-blue-500/20 flex items-center justify-center">
-                            <span className="text-blue-600 dark:text-blue-500 font-bold">CF</span>
+                            <span className="text-blue-600 dark:text-blue-500 font-bold">
+                              CF
+                            </span>
                           </div>
                           <div>
-                            <p className="text-foreground font-medium">Codeforces</p>
+                            <p className="text-foreground font-medium">
+                              Codeforces
+                            </p>
                             <p className="text-xs text-muted-foreground">
-                              {codeforcesHandle ? `Connected as ${codeforcesHandle}` : 'Not connected'}
+                              {codeforcesHandle
+                                ? `Connected as ${codeforcesHandle}`
+                                : "Not connected"}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Input
                             value={codeforcesHandle}
-                            onChange={(e) => setCodeforcesHandle(e.target.value)}
+                            onChange={(e) =>
+                              setCodeforcesHandle(e.target.value)
+                            }
                             placeholder="Codeforces handle"
                             className="w-40 bg-muted border-border text-foreground"
                           />
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={handleSaveProfile}
                             disabled={updateProfileMutation.isPending}
                           >
-                            {codeforcesHandle ? 'Update' : 'Connect'}
-                        </Button>
+                            {codeforcesHandle ? "Update" : "Connect"}
+                          </Button>
                         </div>
                       </div>
 
@@ -431,12 +588,18 @@ export default function SettingsPage() {
                       <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded bg-gray-600/20 flex items-center justify-center">
-                            <span className="text-gray-700 dark:text-gray-300 font-bold">GH</span>
+                            <span className="text-gray-700 dark:text-gray-300 font-bold">
+                              GH
+                            </span>
                           </div>
                           <div>
-                            <p className="text-foreground font-medium">GitHub</p>
+                            <p className="text-foreground font-medium">
+                              GitHub
+                            </p>
                             <p className="text-xs text-muted-foreground">
-                              {githubUsername ? `Connected as ${githubUsername}` : 'Not connected'}
+                              {githubUsername
+                                ? `Connected as ${githubUsername}`
+                                : "Not connected"}
                             </p>
                             {githubRepo && (
                               <p className="text-xs text-muted-foreground mt-1">
@@ -445,13 +608,13 @@ export default function SettingsPage() {
                             )}
                           </div>
                         </div>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => setShowGithubDialog(true)}
                           disabled={connectGithubMutation.isPending}
                         >
-                          {githubUsername ? 'Reconnect' : 'Connect'}
+                          {githubUsername ? "Reconnect" : "Connect"}
                         </Button>
                       </div>
                     </div>
@@ -461,13 +624,17 @@ export default function SettingsPage() {
             )}
 
             {/* Account Tab */}
-            {activeTab === 'account' && (
+            {activeTab === "account" && (
               <Card className="bg-card border-border">
                 <CardContent className="p-6">
-                  <h2 className="text-lg font-semibold text-foreground mb-4">Account Settings</h2>
+                  <h2 className="text-lg font-semibold text-foreground mb-4">
+                    Account Settings
+                  </h2>
                   <div className="space-y-4">
                     <div>
-                      <Label className="text-foreground mb-2 block text-sm">Email Address</Label>
+                      <Label className="text-foreground mb-2 block text-sm">
+                        Email Address
+                      </Label>
                       <Input
                         type="email"
                         value="alexander@example.com"
@@ -476,17 +643,21 @@ export default function SettingsPage() {
                       />
                     </div>
                     <div>
-                      <Label className="text-foreground mb-2 block text-sm">Password</Label>
+                      <Label className="text-foreground mb-2 block text-sm">
+                        Password
+                      </Label>
                       <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
                         Change Password
                       </Button>
                     </div>
                     <div>
-                      <Label className="text-foreground mb-2 block text-sm">Two-Factor Authentication</Label>
-                      <p className="text-sm text-muted-foreground mb-2">Secure your account with 2FA</p>
-                      <Button variant="outline">
-                        Enable 2FA
-                      </Button>
+                      <Label className="text-foreground mb-2 block text-sm">
+                        Two-Factor Authentication
+                      </Label>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Secure your account with 2FA
+                      </p>
+                      <Button variant="outline">Enable 2FA</Button>
                     </div>
                   </div>
                 </CardContent>
@@ -494,24 +665,37 @@ export default function SettingsPage() {
             )}
 
             {/* Integrations Tab */}
-            {activeTab === 'integrations' && (
+            {activeTab === "integrations" && (
               <div className="space-y-6">
                 <Card className="bg-card border-border">
                   <CardContent className="p-6">
-                    <h2 className="text-lg font-semibold text-foreground mb-4">Connected Platforms</h2>
-                    <p className="text-sm text-muted-foreground mb-6">Your connected coding platforms and services.</p>
+                    <h2 className="text-lg font-semibold text-foreground mb-4">
+                      Connected Platforms
+                    </h2>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Your connected coding platforms and services.
+                    </p>
 
                     <div className="space-y-4">
                       {/* LeetCode */}
                       <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded bg-yellow-500/20 flex items-center justify-center text-yellow-500 font-bold">L</div>
+                          <div className="w-8 h-8 rounded bg-yellow-500/20 flex items-center justify-center text-yellow-500 font-bold">
+                            L
+                          </div>
                           <div>
-                            <p className="text-foreground font-medium">LeetCode</p>
-                            <p className="text-xs text-muted-foreground">Last synced: 2 hours ago</p>
+                            <p className="text-foreground font-medium">
+                              LeetCode
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Last synced: 2 hours ago
+                            </p>
                           </div>
                         </div>
-                        <Button variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-2">
+                        <Button
+                          variant="outline"
+                          className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-2"
+                        >
                           <Unlink className="w-4 h-4" />
                           Disconnect
                         </Button>
@@ -520,10 +704,16 @@ export default function SettingsPage() {
                       {/* Codeforces */}
                       <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded bg-blue-500/20 flex items-center justify-center text-blue-500 font-bold">CF</div>
+                          <div className="w-8 h-8 rounded bg-blue-500/20 flex items-center justify-center text-blue-500 font-bold">
+                            CF
+                          </div>
                           <div>
-                            <p className="text-foreground font-medium">Codeforces</p>
-                            <p className="text-xs text-muted-foreground">Not connected</p>
+                            <p className="text-foreground font-medium">
+                              Codeforces
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Not connected
+                            </p>
                           </div>
                         </div>
                         <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
@@ -534,13 +724,22 @@ export default function SettingsPage() {
                       {/* GitHub */}
                       <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded bg-gray-600/20 flex items-center justify-center text-gray-300 font-bold">GH</div>
+                          <div className="w-8 h-8 rounded bg-gray-600/20 flex items-center justify-center text-gray-300 font-bold">
+                            GH
+                          </div>
                           <div>
-                            <p className="text-foreground font-medium">GitHub</p>
-                            <p className="text-xs text-muted-foreground">Last synced: 5 minutes ago</p>
+                            <p className="text-foreground font-medium">
+                              GitHub
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Last synced: 5 minutes ago
+                            </p>
                           </div>
                         </div>
-                        <Button variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-2">
+                        <Button
+                          variant="outline"
+                          className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-2"
+                        >
                           <Unlink className="w-4 h-4" />
                           Disconnect
                         </Button>
@@ -552,25 +751,35 @@ export default function SettingsPage() {
             )}
 
             {/* Notifications Tab */}
-            {activeTab === 'notifications' && (
+            {activeTab === "notifications" && (
               <Card className="bg-card border-border">
                 <CardContent className="p-6">
-                  <h2 className="text-lg font-semibold text-foreground mb-4">Notifications</h2>
-                  <p className="text-sm text-muted-foreground mb-6">Manage how you receive updates and reminders.</p>
+                  <h2 className="text-lg font-semibold text-foreground mb-4">
+                    Notifications
+                  </h2>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    Manage how you receive updates and reminders.
+                  </p>
 
                   <div className="space-y-4">
                     {/* Daily Challenge */}
                     <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
                       <div>
-                        <p className="text-foreground font-medium">Daily Challenge Reminder</p>
+                        <p className="text-foreground font-medium">
+                          Daily Challenge Reminder
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                          Receive a notification at 9:00 AM if you haven&apos;t solved the daily problem.
+                          Receive a notification at 9:00 AM if you haven&apos;t
+                          solved the daily problem.
                         </p>
                       </div>
                       <Switch
                         checked={notifications.dailyChallenge}
                         onCheckedChange={(checked) =>
-                          setNotifications({ ...notifications, dailyChallenge: checked })
+                          setNotifications({
+                            ...notifications,
+                            dailyChallenge: checked,
+                          })
                         }
                       />
                     </div>
@@ -578,13 +787,21 @@ export default function SettingsPage() {
                     {/* Contest Alerts */}
                     <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
                       <div>
-                        <p className="text-foreground font-medium">Contest Alerts</p>
-                        <p className="text-xs text-muted-foreground">Get notified 12 minutes before registered contests begin.</p>
+                        <p className="text-foreground font-medium">
+                          Contest Alerts
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Get notified 12 minutes before registered contests
+                          begin.
+                        </p>
                       </div>
                       <Switch
                         checked={notifications.contestAlerts}
                         onCheckedChange={(checked) =>
-                          setNotifications({ ...notifications, contestAlerts: checked })
+                          setNotifications({
+                            ...notifications,
+                            contestAlerts: checked,
+                          })
                         }
                       />
                     </div>
@@ -592,13 +809,20 @@ export default function SettingsPage() {
                     {/* Streak Reminder */}
                     <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
                       <div>
-                        <p className="text-foreground font-medium">Streak Saver</p>
-                        <p className="text-xs text-muted-foreground">Warning email when your streak is about to expire.</p>
+                        <p className="text-foreground font-medium">
+                          Streak Saver
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Warning email when your streak is about to expire.
+                        </p>
                       </div>
                       <Switch
                         checked={notifications.streakReminder}
                         onCheckedChange={(checked) =>
-                          setNotifications({ ...notifications, streakReminder: checked })
+                          setNotifications({
+                            ...notifications,
+                            streakReminder: checked,
+                          })
                         }
                       />
                     </div>
@@ -608,26 +832,42 @@ export default function SettingsPage() {
             )}
 
             {/* Appearance Tab */}
-            {activeTab === 'appearance' && (
+            {activeTab === "appearance" && (
               <div className="space-y-6">
                 <Card className="bg-card border-border">
                   <CardContent className="p-6">
-                    <h2 className="text-lg font-semibold text-foreground mb-4">Theme</h2>
-                    <p className="text-sm text-muted-foreground mb-6">Choose how the app should look on your device.</p>
+                    <h2 className="text-lg font-semibold text-foreground mb-4">
+                      Theme
+                    </h2>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Choose how the app should look on your device.
+                    </p>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* Light Theme */}
                       <div
-                        onClick={() => setTheme('light')}
+                        onClick={() => setTheme("light")}
                         className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                          theme === 'light'
-                            ? 'border-primary bg-primary/10 shadow-sm'
-                            : 'border-border bg-card hover:bg-muted'
+                          theme === "light"
+                            ? "border-primary bg-primary/10 shadow-sm"
+                            : "border-border bg-card hover:bg-muted"
                         }`}
                       >
                         <div className="flex items-center gap-2 mb-3">
-                          <Sun className={`w-5 h-5 ${theme === 'light' ? 'text-primary' : 'text-muted-foreground'}`} />
-                          <span className={`font-medium ${theme === 'light' ? 'text-primary' : 'text-foreground'}`}>
+                          <Sun
+                            className={`w-5 h-5 ${
+                              theme === "light"
+                                ? "text-primary"
+                                : "text-muted-foreground"
+                            }`}
+                          />
+                          <span
+                            className={`font-medium ${
+                              theme === "light"
+                                ? "text-primary"
+                                : "text-foreground"
+                            }`}
+                          >
                             Light
                           </span>
                         </div>
@@ -636,16 +876,28 @@ export default function SettingsPage() {
 
                       {/* Dark Theme */}
                       <div
-                        onClick={() => setTheme('dark')}
+                        onClick={() => setTheme("dark")}
                         className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                          theme === 'dark'
-                            ? 'border-primary bg-primary/10 shadow-sm'
-                            : 'border-border bg-card hover:bg-muted'
+                          theme === "dark"
+                            ? "border-primary bg-primary/10 shadow-sm"
+                            : "border-border bg-card hover:bg-muted"
                         }`}
                       >
                         <div className="flex items-center gap-2 mb-3">
-                          <Moon className={`w-5 h-5 ${theme === 'dark' ? 'text-primary' : 'text-muted-foreground'}`} />
-                          <span className={`font-medium ${theme === 'dark' ? 'text-primary' : 'text-foreground'}`}>
+                          <Moon
+                            className={`w-5 h-5 ${
+                              theme === "dark"
+                                ? "text-primary"
+                                : "text-muted-foreground"
+                            }`}
+                          />
+                          <span
+                            className={`font-medium ${
+                              theme === "dark"
+                                ? "text-primary"
+                                : "text-foreground"
+                            }`}
+                          >
                             Dark
                           </span>
                         </div>
@@ -654,18 +906,28 @@ export default function SettingsPage() {
 
                       {/* Auto Theme */}
                       <div
-                        onClick={() => setTheme('system')}
+                        onClick={() => setTheme("system")}
                         className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                          theme === 'system'
-                            ? 'border-primary bg-primary/10 shadow-sm'
-                            : 'border-border bg-card hover:bg-muted'
+                          theme === "system"
+                            ? "border-primary bg-primary/10 shadow-sm"
+                            : "border-border bg-card hover:bg-muted"
                         }`}
                       >
                         <div className="flex items-center gap-2 mb-3">
                           <Monitor
-                            className={`w-5 h-5 ${theme === 'system' ? 'text-primary' : 'text-muted-foreground'}`}
+                            className={`w-5 h-5 ${
+                              theme === "system"
+                                ? "text-primary"
+                                : "text-muted-foreground"
+                            }`}
                           />
-                          <span className={`font-medium ${theme === 'system' ? 'text-primary' : 'text-foreground'}`}>
+                          <span
+                            className={`font-medium ${
+                              theme === "system"
+                                ? "text-primary"
+                                : "text-foreground"
+                            }`}
+                          >
                             System
                           </span>
                         </div>
@@ -674,15 +936,20 @@ export default function SettingsPage() {
                     </div>
 
                     <p className="text-xs text-muted-foreground mt-4">
-                      System mode follows your device preference for light or dark.
+                      System mode follows your device preference for light or
+                      dark.
                     </p>
                   </CardContent>
                 </Card>
 
                 <Card className="bg-card border-border">
                   <CardContent className="p-6">
-                    <h2 className="text-lg font-semibold text-foreground mb-4">Accent Color</h2>
-                    <p className="text-sm text-muted-foreground mb-6">Customize the color scheme of the application.</p>
+                    <h2 className="text-lg font-semibold text-foreground mb-4">
+                      Accent Color
+                    </h2>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Customize the color scheme of the application.
+                    </p>
 
                     <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
                       {accentOptions.map((option) => (
@@ -691,8 +958,8 @@ export default function SettingsPage() {
                           onClick={() => setAccent(option.id)}
                           className={`w-12 h-12 rounded-lg cursor-pointer border-2 transition-all ${
                             accent === option.id
-                              ? 'border-primary ring-2 ring-primary/40 shadow-sm'
-                              : 'border-border hover:border-primary/40'
+                              ? "border-primary ring-2 ring-primary/40 shadow-sm"
+                              : "border-border hover:border-primary/40"
                           } ${option.swatchClass}`}
                           title={`${option.label} accent`}
                         />
@@ -706,14 +973,23 @@ export default function SettingsPage() {
             {/* Danger Zone - Always shown */}
             <Card className="bg-destructive/10 border-destructive/20 mt-8">
               <CardContent className="p-6">
-                <h2 className="text-lg font-semibold text-red-500 mb-2">Danger Zone</h2>
-                <p className="text-sm text-muted-foreground mb-4">Irreversible actions for your account.</p>
+                <h2 className="text-lg font-semibold text-red-500 mb-2">
+                  Danger Zone
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Irreversible actions for your account.
+                </p>
 
-                <Button variant="destructive" className="bg-destructive hover:bg-destructive/90 gap-2">
+                <Button
+                  variant="destructive"
+                  className="bg-destructive hover:bg-destructive/90 gap-2"
+                >
                   <Trash2 className="w-4 h-4" />
                   Delete Account
                 </Button>
-                <p className="text-xs text-muted-foreground mt-2">Permanently removes your account and all data.</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Permanently removes your account and all data.
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -724,14 +1000,18 @@ export default function SettingsPage() {
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Change Password</DialogTitle>
+            <DialogTitle className="text-foreground">
+              Change Password
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground">
               Enter your current password and choose a new one.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label className="text-foreground mb-2 block text-sm">Current Password</Label>
+              <Label className="text-foreground mb-2 block text-sm">
+                Current Password
+              </Label>
               <Input
                 type="password"
                 value={currentPassword}
@@ -741,7 +1021,9 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <Label className="text-foreground mb-2 block text-sm">New Password</Label>
+              <Label className="text-foreground mb-2 block text-sm">
+                New Password
+              </Label>
               <Input
                 type="password"
                 value={newPassword}
@@ -750,11 +1032,14 @@ export default function SettingsPage() {
                 placeholder="Enter new password"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Must be at least 8 characters with uppercase, lowercase, and number
+                Must be at least 8 characters with uppercase, lowercase, and
+                number
               </p>
             </div>
             <div>
-              <Label className="text-foreground mb-2 block text-sm">Confirm New Password</Label>
+              <Label className="text-foreground mb-2 block text-sm">
+                Confirm New Password
+              </Label>
               <Input
                 type="password"
                 value={confirmPassword}
@@ -769,9 +1054,9 @@ export default function SettingsPage() {
               variant="outline"
               onClick={() => {
                 setShowPasswordDialog(false);
-                setCurrentPassword('');
-                setNewPassword('');
-                setConfirmPassword('');
+                setCurrentPassword("");
+                setNewPassword("");
+                setConfirmPassword("");
               }}
               className="border-border text-foreground"
             >
@@ -782,7 +1067,9 @@ export default function SettingsPage() {
               disabled={changePasswordMutation.isPending}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
-              {changePasswordMutation.isPending ? 'Changing...' : 'Change Password'}
+              {changePasswordMutation.isPending
+                ? "Changing..."
+                : "Change Password"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -792,43 +1079,62 @@ export default function SettingsPage() {
       <Dialog open={showGithubDialog} onOpenChange={setShowGithubDialog}>
         <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Connect GitHub Account</DialogTitle>
+            <DialogTitle className="text-foreground">
+              Connect GitHub Account
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Connect your GitHub account using a Personal Access Token (PAT) to automatically push your accepted solutions.
+              Connect your GitHub account using a Personal Access Token (PAT) to
+              automatically push your accepted solutions.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-6 py-4">
             {/* Instructions */}
             <Card className="bg-blue-500/10 border-blue-500/20">
               <CardContent className="p-4">
-                <h3 className="text-sm font-semibold text-foreground mb-3">How to get your GitHub Personal Access Token:</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-3">
+                  How to get your GitHub Personal Access Token:
+                </h3>
                 <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
                   <li>
-                    Go to{' '}
+                    Go to{" "}
                     <a
                       href="https://github.com/settings/tokens"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary hover:underline inline-flex items-center gap-1"
                     >
-                      GitHub Settings &rarr; Developer settings &rarr; Personal access tokens &rarr; Tokens (classic)
+                      GitHub Settings &rarr; Developer settings &rarr; Personal
+                      access tokens &rarr; Tokens (classic)
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   </li>
-                  <li>Click &quot;Generate new token&quot; &rarr; &quot;Generate new token (classic)&quot;</li>
-                  <li>Give your token a descriptive name (e.g., &quot;CS Hub Solutions&quot;)</li>
+                  <li>
+                    Click &quot;Generate new token&quot; &rarr; &quot;Generate
+                    new token (classic)&quot;
+                  </li>
+                  <li>
+                    Give your token a descriptive name (e.g., &quot;CS Hub
+                    Solutions&quot;)
+                  </li>
                   <li>Select expiration (recommended: 90 days or custom)</li>
                   <li>
                     <strong>Check the following scopes:</strong>
                     <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
-                      <li><code className="bg-muted px-1 rounded">repo</code> &ndash; Full control of private repositories</li>
-                      <li><code className="bg-muted px-1 rounded">workflow</code> &ndash; Update GitHub Action workflows</li>
+                      <li>
+                        <code className="bg-muted px-1 rounded">repo</code>{" "}
+                        &ndash; Full control of private repositories
+                      </li>
+                      <li>
+                        <code className="bg-muted px-1 rounded">workflow</code>{" "}
+                        &ndash; Update GitHub Action workflows
+                      </li>
                     </ul>
                   </li>
                   <li>Click &quot;Generate token&quot; at the bottom</li>
                   <li>
-                    <strong>Copy the token immediately</strong> &ndash; you won&apos;t be able to see it again!
+                    <strong>Copy the token immediately</strong> &ndash; you
+                    won&apos;t be able to see it again!
                   </li>
                 </ol>
               </CardContent>
@@ -837,7 +1143,9 @@ export default function SettingsPage() {
             {/* Token Input */}
             <div className="space-y-4">
               <div>
-                <Label className="text-foreground mb-2 block text-sm">Personal Access Token</Label>
+                <Label className="text-foreground mb-2 block text-sm">
+                  Personal Access Token
+                </Label>
                 <Input
                   type="password"
                   value={githubToken}
@@ -846,12 +1154,15 @@ export default function SettingsPage() {
                   placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Your token starts with &quot;ghp_&quot; and is 40+ characters long
+                  Your token starts with &quot;ghp_&quot; and is 40+ characters
+                  long
                 </p>
               </div>
 
               <div>
-                <Label className="text-foreground mb-2 block text-sm">Repository Name (Optional)</Label>
+                <Label className="text-foreground mb-2 block text-sm">
+                  Repository Name (Optional)
+                </Label>
                 <Input
                   value={githubRepo}
                   onChange={(e) => setGithubRepo(e.target.value)}
@@ -859,7 +1170,9 @@ export default function SettingsPage() {
                   placeholder="cs-hub-solutions"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Leave empty to use default: &quot;cs-hub-solutions&quot;. Repository will be created automatically if it doesn&apos;t exist.
+                  Leave empty to use default: &quot;cs-hub-solutions&quot;.
+                  Repository will be created automatically if it doesn&apos;t
+                  exist.
                 </p>
               </div>
             </div>
@@ -868,8 +1181,10 @@ export default function SettingsPage() {
             <Card className="bg-yellow-500/10 border-yellow-500/20">
               <CardContent className="p-4">
                 <p className="text-sm text-foreground">
-                  <strong>Security Note:</strong> Your token is stored securely and only used to push your accepted solutions to GitHub. 
-                  Never share your token with anyone. You can revoke it anytime from GitHub settings.
+                  <strong>Security Note:</strong> Your token is stored securely
+                  and only used to push your accepted solutions to GitHub. Never
+                  share your token with anyone. You can revoke it anytime from
+                  GitHub settings.
                 </p>
               </CardContent>
             </Card>
@@ -880,7 +1195,7 @@ export default function SettingsPage() {
               variant="outline"
               onClick={() => {
                 setShowGithubDialog(false);
-                setGithubToken('');
+                setGithubToken("");
               }}
               className="border-border text-foreground"
             >
@@ -889,7 +1204,7 @@ export default function SettingsPage() {
             <Button
               onClick={() => {
                 if (!githubToken.trim()) {
-                  toast.error('Please enter your GitHub Personal Access Token');
+                  toast.error("Please enter your GitHub Personal Access Token");
                   return;
                 }
                 connectGithubMutation.mutate({
@@ -900,7 +1215,9 @@ export default function SettingsPage() {
               disabled={connectGithubMutation.isPending || !githubToken.trim()}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
-              {connectGithubMutation.isPending ? 'Connecting...' : 'Connect GitHub'}
+              {connectGithubMutation.isPending
+                ? "Connecting..."
+                : "Connect GitHub"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -908,4 +1225,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
