@@ -40,6 +40,7 @@ import { Loading } from "@/components/common/Loading";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Pagination } from "@/components/common/Pagination";
 import { toast } from "sonner";
+import Link from "next/link";
 
 // ============================================================================
 // HELPERS
@@ -100,6 +101,11 @@ function isContestLive(startTime: string, durationMinutes: number): boolean {
   return (
     hasContestStarted(startTime) && !hasContestEnded(startTime, durationMinutes)
   );
+}
+
+// Check if contest is upcoming (hasn't started yet)
+function isContestUpcoming(startTime: string): boolean {
+  return Date.now() < new Date(startTime).getTime();
 }
 
 // Get external contest URL based on platform
@@ -232,7 +238,22 @@ export default function ContestsPage() {
     if (activeTab === "my-contests") {
       contests = myContests;
     } else {
-      contests = contestsData?.data || [];
+      const allContests = contestsData?.data || [];
+
+      // Filter based on computed status (not API status)
+      if (activeTab === "upcoming") {
+        // Show contests that haven't ended yet (upcoming or live)
+        contests = allContests.filter(
+          (c) => !hasContestEnded(c.startTime, c.duration)
+        );
+      } else if (activeTab === "past") {
+        // Show contests that have ended
+        contests = allContests.filter((c) =>
+          hasContestEnded(c.startTime, c.duration)
+        );
+      } else {
+        contests = allContests;
+      }
     }
 
     // Apply search filter
@@ -244,10 +265,21 @@ export default function ContestsPage() {
     return contests;
   }, [activeTab, myContests, contestsData?.data, searchQuery]);
 
-  // Featured contest for hero section
+  // Get truly upcoming contests (haven't started yet) for featured section
+  const upcomingContests = useMemo(() => {
+    const allContests = contestsData?.data || [];
+    return allContests
+      .filter((c) => isContestUpcoming(c.startTime))
+      .sort(
+        (a, b) =>
+          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+      );
+  }, [contestsData?.data]);
+
+  // Featured contest - the closest upcoming contest
   const featuredContest =
-    activeTab === "upcoming" && displayedContests.length > 0
-      ? displayedContests[0]
+    activeTab === "upcoming" && upcomingContests.length > 0
+      ? upcomingContests[0]
       : null;
 
   // ============================================================================
@@ -357,16 +389,43 @@ export default function ContestsPage() {
           </Button>
         </div>
 
-        {/* Featured Contest Hero */}
-        {featuredContest && (
-          <FeaturedContestCard
-            contest={featuredContest}
-            countdown={countdown}
-            isRegistered={registeredContestIds.has(featuredContest.id)}
-            onRegister={() => registerMutation.mutate(featuredContest.id)}
-            isRegistering={registerMutation.isPending}
-          />
-        )}
+        {/* Featured Contest Hero - Only show on upcoming tab */}
+        {activeTab === "upcoming" &&
+          !contestsLoading &&
+          (featuredContest ? (
+            <FeaturedContestCard
+              contest={featuredContest}
+              countdown={countdown}
+              isRegistered={registeredContestIds.has(featuredContest.id)}
+              onRegister={() => registerMutation.mutate(featuredContest.id)}
+              isRegistering={registerMutation.isPending}
+            />
+          ) : (
+            <Card className="bg-gradient-to-br from-muted/50 to-muted/30 border-border">
+              <CardContent className="p-8 text-center">
+                <div className="space-y-4">
+                  <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
+                    <Calendar className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-2">
+                    <h2 className="text-xl font-semibold text-foreground">
+                      No Upcoming Contests
+                    </h2>
+                    <p className="text-muted-foreground max-w-md mx-auto">
+                      There are no upcoming contests scheduled at the moment. In
+                      the meantime, sharpen your skills with some practice
+                      problems!
+                    </p>
+                  </div>
+                  <Link href="/problems">
+                    <Button className="bg-primary hover:bg-primary/90 text-primary-foreground mt-2">
+                      Browse Practice Problems
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
 
         {/* Tabs */}
         <Tabs
