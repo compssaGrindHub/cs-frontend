@@ -44,13 +44,9 @@ interface PaginatedNotificationsResponse {
 export const getNotifications = async (
   params?: GetNotificationsParams
 ): Promise<PaginatedNotificationsResponse> => {
-  const response = await apiClient.get<{ success: boolean; data: Notification[]; meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  } }>('/notifications', { params });
-  
+  const response = await apiClient.get('/notifications', { params });
+  const raw = response.data as unknown;
+
   const defaultMeta = {
     total: 0,
     page: 1,
@@ -58,11 +54,20 @@ export const getNotifications = async (
     totalPages: 0,
   };
 
-  // Backend returns: { success: true, data: notifications[], meta: {...} }
-  // So we need to extract from response.data.data and response.data.meta
+  // If wrapped in ApiResponse
+  if (raw && typeof raw === 'object' && 'success' in raw) {
+    const inner = (raw as ApiResponse<{ data: Notification[]; meta: unknown }>).data;
+    return {
+      data: inner?.data || [],
+      meta: (inner?.meta as Record<string, unknown>) || defaultMeta,
+    };
+  }
+
+  // Direct response: { data: Notification[]; meta: {...} }
+  const direct = raw as { data?: Notification[]; meta?: unknown } | undefined;
   return {
-    data: response.data.data || [],
-    meta: response.data.meta || defaultMeta,
+    data: direct?.data || [],
+    meta: (direct?.meta as Record<string, unknown>) || defaultMeta,
   };
 };
 
