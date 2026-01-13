@@ -46,7 +46,9 @@ import {
   createContest,
   updateContest,
   deleteContest,
+  // TODO: new implementation for private contest implemented by Zigla in the evaluateContest api logic, review later
   syncContestStandings,
+  evaluateContest,
 } from "@/lib/api";
 import { Contest, Platform } from "@/lib/types/contest";
 import { Loading } from "@/components/common/Loading";
@@ -164,7 +166,9 @@ export default function AdminContestsPage() {
   });
 
   const syncStandingsMutation = useMutation({
-    mutationFn: syncContestStandings,
+    // TODO: new implementation for private contest implemented by Zigla in the evaluateContest api logic, review later
+    // Old: mutationFn: syncContestStandings,
+    mutationFn: evaluateContest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contests", "all"] });
       queryClient.refetchQueries({ queryKey: ["contests", "all"] });

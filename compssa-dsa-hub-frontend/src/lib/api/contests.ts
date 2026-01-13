@@ -131,8 +131,12 @@ export const getContestStandings = async (
  * Allow admins to evaluate contest once completed or in process, before users can see standings
  * GET /api/contests/:id/evaluate
  */
-export const evaluateContest = async (id: string): Promise<ApiResponse> => {
-  const response = await apiClient.get<ApiResponse>(`/contests/${id}/evaluate`);
+export const evaluateContest = async (
+  id: string
+): Promise<ApiResponse<{ synced: boolean }>> => {
+  const response = await apiClient.post<ApiResponse<{ synced: boolean }>>(
+    `/contests/${id}/evaluate`
+  );
   return response.data;
 };
 
