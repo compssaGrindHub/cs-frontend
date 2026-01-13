@@ -1,33 +1,80 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useAuthStore } from '@/lib/stores/authStore';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  Share2, 
-  Edit3, 
-  Flame, 
+import { useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useAuthStore } from "@/lib/stores/authStore";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Share2,
+  Edit3,
+  Flame,
   Trophy,
   Code2,
   CheckCircle2,
   Calendar,
-  Clock
-} from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { Loading } from '@/components/common/Loading';
-import { EmptyState } from '@/components/common/EmptyState';
-import { 
-  getCurrentUser, 
-  getUserStats, 
+  Clock,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loading } from "@/components/common/Loading";
+import { EmptyState } from "@/components/common/EmptyState";
+import {
+  getCurrentUser,
+  getUserStats,
   getUserRank,
   getUserActivity,
-  getUserProgress
-} from '@/lib/api';
-import { getUserAchievements } from '@/lib/api/achievements';
-import { format, formatDistanceToNow } from 'date-fns';
+  getUserProgress,
+} from "@/lib/api";
+import { getUserAchievements } from "@/lib/api/achievements";
+import { format, formatDistanceToNow } from "date-fns";
+import { User } from "@/lib/types/user";
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+// Extract user from potentially corrupted store data
+// The store sometimes has {success: true, data: {...}} instead of just the user
+function extractUser(user: unknown): User | null {
+  if (!user) return null;
+
+  // Normal case: user has id directly (proper User type)
+  if (
+    typeof user === "object" &&
+    "id" in user &&
+    "username" in user &&
+    typeof (user as User).id === "string"
+  ) {
+    return user as User;
+  }
+
+  // Corrupted case: user is wrapped in API response {success: true, data: {...}}
+  if (typeof user === "object" && "data" in user) {
+    const data = (user as { data: unknown }).data;
+    if (
+      typeof data === "object" &&
+      data &&
+      "id" in data &&
+      "username" in data
+    ) {
+      return data as User;
+    }
+  }
+
+  return null;
+}
+
+// Get initials from name or username
+function getInitials(
+  name: string | null | undefined,
+  fallback: string
+): string {
+  if (name && name.length > 0) {
+    return name.slice(0, 2).toUpperCase();
+  }
+  return fallback.slice(0, 2).toUpperCase();
+}
 
 // GitHub-style contribution data (52 weeks x 7 days)
 const generateContributionData = () => {
@@ -48,19 +95,22 @@ const generateContributionData = () => {
 };
 
 const getContributionColor = (level: number) => {
-  const colors = {
-    0: 'bg-muted border-border/60',
-    1: 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-200 dark:border-emerald-800/60',
-    2: 'bg-emerald-200 dark:bg-emerald-800/80 border-emerald-300 dark:border-emerald-700/80',
-    3: 'bg-emerald-300 dark:bg-emerald-700 border-emerald-400 dark:border-emerald-600',
-    4: 'bg-emerald-400 dark:bg-emerald-600 border-emerald-500 dark:border-emerald-500',
+  const colors: Record<number, string> = {
+    0: "bg-muted border-border/60",
+    1: "bg-emerald-100 dark:bg-emerald-900/50 border-emerald-200 dark:border-emerald-800/60",
+    2: "bg-emerald-200 dark:bg-emerald-800/80 border-emerald-300 dark:border-emerald-700/80",
+    3: "bg-emerald-300 dark:bg-emerald-700 border-emerald-400 dark:border-emerald-600",
+    4: "bg-emerald-400 dark:bg-emerald-600 border-emerald-500 dark:border-emerald-500",
   };
-  return colors[level as keyof typeof colors];
+  return colors[level] || colors[0];
 };
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user: currentUser, isAuthenticated, syncAuthState } = useAuthStore();
+  const { user: storeUser, isAuthenticated, syncAuthState } = useAuthStore();
+
+  // Extract valid user from potentially corrupted store data
+  const currentUser = useMemo(() => extractUser(storeUser), [storeUser]);
 
   // Sync auth state on mount to ensure user is available
   useEffect(() => {
@@ -69,30 +119,44 @@ export default function ProfilePage() {
 
   // Debug: Log current user state
   useEffect(() => {
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-      console.log('[Profile] Current user from store:', {
+    if (
+      typeof window !== "undefined" &&
+      process.env.NODE_ENV === "development"
+    ) {
+      console.log("[Profile] Current user from store:", {
         hasUser: !!currentUser,
         userId: currentUser?.id,
         isAuthenticated,
-        userObject: currentUser,
+        rawStoreUser: storeUser,
+        extractedUser: currentUser,
       });
     }
-  }, [currentUser, isAuthenticated]);
+  }, [currentUser, isAuthenticated, storeUser]);
 
   // Use user from store as primary source - queries are for refreshing data
   // Only fetch if we have a user ID from the store
   const userId = currentUser?.id;
 
   // Fetch fresh user data (optional - we have user from store)
-  const { data: userData, isLoading: userLoading, error: userError } = useQuery({
-    queryKey: ['currentUser'],
+  const {
+    data: userData,
+    isLoading: userLoading,
+    error: userError,
+  } = useQuery({
+    queryKey: ["currentUser"],
     queryFn: async () => {
-      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-        console.log('[Profile] Fetching current user from API...');
+      if (
+        typeof window !== "undefined" &&
+        process.env.NODE_ENV === "development"
+      ) {
+        console.log("[Profile] Fetching current user from API...");
       }
       const result = await getCurrentUser();
-      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-        console.log('[Profile] Current user API response:', result);
+      if (
+        typeof window !== "undefined" &&
+        process.env.NODE_ENV === "development"
+      ) {
+        console.log("[Profile] Current user API response:", result);
       }
       return result;
     },
@@ -103,18 +167,28 @@ export default function ProfilePage() {
   });
 
   // Fetch user stats
-  const { data: userStats, isLoading: statsLoading, error: statsError } = useQuery({
-    queryKey: ['userStats', userId],
+  const {
+    data: userStats,
+    isLoading: statsLoading,
+    error: statsError,
+  } = useQuery({
+    queryKey: ["userStats", userId],
     queryFn: async () => {
       if (!userId) {
-        throw new Error('User ID not available');
+        throw new Error("User ID not available");
       }
-      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-        console.log('[Profile] Fetching user stats for userId:', userId);
+      if (
+        typeof window !== "undefined" &&
+        process.env.NODE_ENV === "development"
+      ) {
+        console.log("[Profile] Fetching user stats for userId:", userId);
       }
       const result = await getUserStats(userId);
-      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-        console.log('[Profile] User stats response:', result);
+      if (
+        typeof window !== "undefined" &&
+        process.env.NODE_ENV === "development"
+      ) {
+        console.log("[Profile] User stats response:", result);
       }
       return result;
     },
@@ -125,7 +199,7 @@ export default function ProfilePage() {
 
   // Fetch user rank
   const { data: rankData, isLoading: rankLoading } = useQuery({
-    queryKey: ['userRank', userId],
+    queryKey: ["userRank", userId],
     queryFn: () => getUserRank(userId!),
     enabled: !!userId,
     retry: 1,
@@ -134,7 +208,7 @@ export default function ProfilePage() {
 
   // Fetch user activity
   const { data: activityData, isLoading: activityLoading } = useQuery({
-    queryKey: ['userActivity', userId],
+    queryKey: ["userActivity", userId],
     queryFn: () => getUserActivity(userId!, 20),
     enabled: !!userId,
     retry: 1,
@@ -143,7 +217,7 @@ export default function ProfilePage() {
 
   // Fetch user progress
   const { data: progressData, isLoading: progressLoading } = useQuery({
-    queryKey: ['userProgress', userId],
+    queryKey: ["userProgress", userId],
     queryFn: () => getUserProgress(userId!),
     enabled: !!userId,
     retry: 1,
@@ -152,7 +226,7 @@ export default function ProfilePage() {
 
   // Fetch user achievements
   const { data: achievementsData, isLoading: achievementsLoading } = useQuery({
-    queryKey: ['userAchievements', userId],
+    queryKey: ["userAchievements", userId],
     queryFn: () => getUserAchievements(userId!),
     enabled: !!userId,
     retry: 1,
@@ -161,23 +235,37 @@ export default function ProfilePage() {
 
   // Log errors in development
   useEffect(() => {
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-      if (userError) console.error('[Profile] Error fetching user:', userError);
-      if (statsError) console.error('[Profile] Error fetching stats:', statsError);
+    if (
+      typeof window !== "undefined" &&
+      process.env.NODE_ENV === "development"
+    ) {
+      if (userError) console.error("[Profile] Error fetching user:", userError);
+      if (statsError)
+        console.error("[Profile] Error fetching stats:", statsError);
     }
   }, [userError, statsError]);
 
   // Use user from store as primary source (should always exist if logged in)
-  // API data is just for refreshing/updating
-  const user = currentUser || userData?.data;
-  
+  // API data is just for refreshing/updating - also handle potential corrupted API response
+  const apiUser = useMemo(() => extractUser(userData?.data), [userData?.data]);
+  const user: User | null = currentUser || apiUser;
+
   // Only show loading if we don't have a user at all AND we're still loading
-  const isLoading = userLoading || statsLoading || rankLoading || activityLoading || progressLoading || achievementsLoading;
-  
+  const isLoading =
+    userLoading ||
+    statsLoading ||
+    rankLoading ||
+    activityLoading ||
+    progressLoading ||
+    achievementsLoading;
+
   // Extract data from API responses
   const stats = userStats || null;
   const rank = rankData?.rank || 0;
-  const activities = useMemo(() => Array.isArray(activityData) ? activityData : [], [activityData]);
+  const activities = useMemo(
+    () => (Array.isArray(activityData) ? activityData : []),
+    [activityData]
+  );
   const progress = progressData?.topics || [];
   const achievements = Array.isArray(achievementsData) ? achievementsData : [];
 
@@ -188,26 +276,33 @@ export default function ProfilePage() {
 
   const contributionData = useMemo(() => {
     // Use activity data if available (has more history), otherwise use recent submissions
-    const submissionsToUse = activities.length > 0 
-      ? activities.map((a: { date?: string; submissionTime?: string }) => ({ submissionTime: a.date }))
-      : (stats?.recentSubmissions || []);
-    
+    const submissionsToUse =
+      activities.length > 0
+        ? activities.map((a: { date?: string; submissionTime?: string }) => ({
+            submissionTime: a.date,
+          }))
+        : stats?.recentSubmissions || [];
+
     if (submissionsToUse.length === 0) {
       return generateContributionData();
     }
-    
+
     const data = [];
     const submissionMap = new Map<string, number>();
-    
-    submissionsToUse.forEach((sub: { submissionTime?: string; date?: string }) => {
-      const date = new Date(sub.submissionTime || sub.date || '').toISOString().slice(0, 10);
-      submissionMap.set(date, (submissionMap.get(date) || 0) + 1);
-    });
-    
+
+    submissionsToUse.forEach(
+      (sub: { submissionTime?: string; date?: string }) => {
+        const date = new Date(sub.submissionTime || sub.date || "")
+          .toISOString()
+          .slice(0, 10);
+        submissionMap.set(date, (submissionMap.get(date) || 0) + 1);
+      }
+    );
+
     // Generate 52 weeks of data (last year)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     for (let week = 0; week < 52; week++) {
       for (let day = 0; day < 7; day++) {
         const date = new Date(today);
@@ -241,8 +336,11 @@ export default function ProfilePage() {
   // Show error or no user state - only if we truly have no user
   // This should rarely happen if auth is working correctly
   if (!user) {
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-      console.error('[Profile] No user found:', {
+    if (
+      typeof window !== "undefined" &&
+      process.env.NODE_ENV === "development"
+    ) {
+      console.error("[Profile] No user found:", {
         currentUser,
         userData: userData?.data,
         isAuthenticated,
@@ -251,18 +349,19 @@ export default function ProfilePage() {
     }
     return (
       <div className="min-h-screen bg-background p-6">
-        <EmptyState 
-          title="User not found" 
-          description="Unable to load profile data. Please ensure you are logged in." 
+        <EmptyState
+          title="User not found"
+          description="Unable to load profile data. Please ensure you are logged in."
         />
       </div>
     );
   }
 
   // At this point, user is guaranteed to be defined
-  const displayName = user.firstName && user.lastName 
-    ? `${user.firstName} ${user.lastName}` 
-    : user.username;
+  const displayName =
+    user.firstName && user.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : user.username;
 
   return (
     <div className="min-h-screen bg-background text-foreground p-6">
@@ -273,42 +372,60 @@ export default function ProfilePage() {
             <div className="flex items-start justify-between mb-6">
               <div className="flex items-start gap-6">
                 <Avatar className="w-24 h-24 border-2 border-primary">
-                  <AvatarImage src={user.profilePicture || undefined} alt={displayName} />
+                  <AvatarImage
+                    src={user.profilePicture || undefined}
+                    alt={displayName}
+                  />
                   <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                    {displayName[0]?.toUpperCase() || user.username[0]?.toUpperCase()}
+                    {getInitials(displayName, user.username)}
                   </AvatarFallback>
                 </Avatar>
 
                 <div className="pt-2">
-                  <h1 className="text-3xl font-bold text-foreground mb-1">{displayName}</h1>
+                  <h1 className="text-3xl font-bold text-foreground mb-1">
+                    {displayName}
+                  </h1>
                   <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
                     <span>@{user.username}</span>
                     <span>•</span>
                     <Calendar className="w-4 h-4" />
-                    <span>Joined {format(new Date(user.createdAt), 'MMM yyyy')}</span>
+                    <span>
+                      Joined {format(new Date(user.createdAt), "MMM yyyy")}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-6 pt-2">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-foreground">{user.totalRating.toLocaleString()}</span>
-                      <span className="text-xs text-muted-foreground">Global Rating</span>
+                      <span className="text-2xl font-bold text-foreground">
+                        {user.totalRating.toLocaleString()}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Global Rating
+                      </span>
                     </div>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-foreground">#{rank || '--'}</span>
-                      <span className="text-xs text-muted-foreground">Global Rank</span>
+                      <span className="text-2xl font-bold text-foreground">
+                        #{rank || "--"}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Global Rank
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" className="border-border text-foreground hover:bg-muted">
+                <Button
+                  variant="outline"
+                  className="border-border text-foreground hover:bg-muted"
+                >
                   <Share2 className="w-4 h-4 mr-2" />
                   Share
                 </Button>
-                <Button 
+                <Button
                   className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
-                  onClick={() => router.push('/settings?tab=profile')}
+                  onClick={() => router.push("/settings?tab=profile")}
                 >
                   <Edit3 className="w-4 h-4 mr-2" />
                   Edit Profile
@@ -322,24 +439,34 @@ export default function ProfilePage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="bg-card border-border shadow-sm">
             <CardContent className="p-6 text-center">
-              <p className="text-muted-foreground text-sm mb-2">Problems Solved</p>
-              <p className="text-3xl font-bold text-foreground">{stats?.solvedProblems || 0}</p>
+              <p className="text-muted-foreground text-sm mb-2">
+                Problems Solved
+              </p>
+              <p className="text-3xl font-bold text-foreground">
+                {stats?.solvedProblems || 0}
+              </p>
             </CardContent>
           </Card>
 
           <Card className="bg-card border-border shadow-sm">
             <CardContent className="p-6 text-center">
               <p className="text-muted-foreground text-sm mb-2">Contests</p>
-              <p className="text-3xl font-bold text-foreground">{stats?.contestsParticipated || 0}</p>
+              <p className="text-3xl font-bold text-foreground">
+                {stats?.contestsParticipated || 0}
+              </p>
             </CardContent>
           </Card>
 
           <Card className="bg-card border-border shadow-sm">
             <CardContent className="p-6 text-center">
-              <p className="text-muted-foreground text-sm mb-2">Current Streak</p>
+              <p className="text-muted-foreground text-sm mb-2">
+                Current Streak
+              </p>
               <div className="flex items-baseline justify-center gap-1">
                 <Flame className="w-6 h-6 text-orange-500" />
-                <p className="text-3xl font-bold text-foreground">{user.currentStreak || 0}</p>
+                <p className="text-3xl font-bold text-foreground">
+                  {user.currentStreak || 0}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -350,7 +477,9 @@ export default function ProfilePage() {
               <div className="flex items-baseline justify-center gap-1">
                 <Clock className="w-5 h-5 text-blue-500" />
                 <p className="text-3xl font-bold text-foreground">
-                  {hoursSpent > 0 ? `${hoursSpent}h ${minutesSpent}m` : `${minutesSpent}m`}
+                  {hoursSpent > 0
+                    ? `${hoursSpent}h ${minutesSpent}m`
+                    : `${minutesSpent}m`}
                 </p>
               </div>
             </CardContent>
@@ -360,11 +489,15 @@ export default function ProfilePage() {
         {/* Contribution Graph */}
         <Card className="bg-card border-border shadow-sm">
           <CardContent className="p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Activity</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4">
+              Activity
+            </h2>
             <p className="text-xs text-muted-foreground mb-4">
-              {stats?.totalProblems ? `${stats.totalProblems} problems attempted` : 'No activity data'}
+              {stats?.totalProblems
+                ? `${stats.totalProblems} problems attempted`
+                : "No activity data"}
             </p>
-            
+
             {/* Contribution Graph */}
             <div className="overflow-x-auto">
               <div className="flex gap-1 pb-4">
@@ -373,12 +506,15 @@ export default function ProfilePage() {
                   <div key={weekIdx} className="flex flex-col gap-1">
                     {/* Days in week */}
                     {Array.from({ length: 7 }).map((_, dayIdx) => {
-                      const contribution = contributionData[weekIdx * 7 + dayIdx];
+                      const contribution =
+                        contributionData[weekIdx * 7 + dayIdx];
                       return (
                         <div
                           key={`${weekIdx}-${dayIdx}`}
                           title={`${contribution?.count || 0} submissions`}
-                          className={`w-3 h-3 rounded-sm border ${getContributionColor(contribution?.level || 0)} cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all`}
+                          className={`w-3 h-3 rounded-sm border ${getContributionColor(
+                            contribution?.level || 0
+                          )} cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all`}
                         />
                       );
                     })}
@@ -390,7 +526,12 @@ export default function ProfilePage() {
             <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground mt-4 pt-4 border-t border-border">
               <span>Less</span>
               {[0, 1, 2, 3, 4].map((level) => (
-                <div key={level} className={`w-3 h-3 rounded-sm ${getContributionColor(level)}`} />
+                <div
+                  key={level}
+                  className={`w-3 h-3 rounded-sm ${getContributionColor(
+                    level
+                  )}`}
+                />
               ))}
               <span>More</span>
             </div>
@@ -400,25 +541,30 @@ export default function ProfilePage() {
         {/* Achievements */}
         <Card className="bg-card border-border shadow-sm">
           <CardContent className="p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Achievements</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4">
+              Achievements
+            </h2>
             {achievements.length > 0 ? (
               <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
                 {achievements.map((userAchievement) => (
-                  <div key={userAchievement.id} className="flex flex-col items-center gap-2">
+                  <div
+                    key={userAchievement.id}
+                    className="flex flex-col items-center gap-2"
+                  >
                     <div className="w-12 h-12 rounded-full border-2 flex items-center justify-center text-xl border-yellow-500/50 bg-yellow-500/10">
-                      {userAchievement.achievement.icon || '🏆'}
+                      {userAchievement.achievement.icon || "🏆"}
                     </div>
                     <p className="text-xs text-center text-foreground">
                       {userAchievement.achievement.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {format(new Date(userAchievement.earnedAt), 'MMM yyyy')}
+                      {format(new Date(userAchievement.earnedAt), "MMM yyyy")}
                     </p>
                   </div>
                 ))}
               </div>
             ) : (
-              <EmptyState 
+              <EmptyState
                 title="No achievements yet"
                 description="Complete challenges and contests to earn achievements."
               />
@@ -431,44 +577,71 @@ export default function ProfilePage() {
           <Card className="bg-card border-border shadow-sm">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-foreground">Recent Activity</h2>
-                <Button variant="link" className="text-primary p-0 h-auto text-sm">
+                <h2 className="text-lg font-semibold text-foreground">
+                  Recent Activity
+                </h2>
+                <Button
+                  variant="link"
+                  className="text-primary p-0 h-auto text-sm"
+                >
                   View All
                 </Button>
               </div>
-              
+
               <div className="space-y-3">
                 {activities.length > 0 ? (
-                  activities.map((activity: { type?: string; metadata?: { status?: string }; date?: string; description?: string }) => {
-                    const Icon = activity.type === 'submission' && activity.metadata?.status === 'ACCEPTED'
-                      ? CheckCircle2
-                      : activity.type === 'submission'
-                      ? Code2
-                      : activity.type === 'achievement'
-                      ? Trophy
-                      : Code2;
-                    const color = activity.type === 'submission' && activity.metadata?.status === 'ACCEPTED'
-                      ? 'text-green-500 bg-green-500/10'
-                      : activity.type === 'submission'
-                      ? 'text-red-500 bg-red-500/10'
-                      : 'text-blue-500 bg-blue-500/10';
-                    
-                    return (
-                      <div key={`${activity.type}-${activity.date}-${activity.description}`} className="flex gap-3 pb-3 border-b border-border last:border-0 last:pb-0">
-                        <div className={`w-8 h-8 rounded-lg ${color} flex items-center justify-center flex-shrink-0`}>
-                          <Icon className="w-4 h-4" />
+                  activities.map(
+                    (activity: {
+                      type?: string;
+                      metadata?: { status?: string };
+                      date?: string;
+                      description?: string;
+                    }) => {
+                      const Icon =
+                        activity.type === "submission" &&
+                        activity.metadata?.status === "ACCEPTED"
+                          ? CheckCircle2
+                          : activity.type === "submission"
+                          ? Code2
+                          : activity.type === "achievement"
+                          ? Trophy
+                          : Code2;
+                      const color =
+                        activity.type === "submission" &&
+                        activity.metadata?.status === "ACCEPTED"
+                          ? "text-green-500 bg-green-500/10"
+                          : activity.type === "submission"
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-blue-500 bg-blue-500/10";
+
+                      return (
+                        <div
+                          key={`${activity.type}-${activity.date}-${activity.description}`}
+                          className="flex gap-3 pb-3 border-b border-border last:border-0 last:pb-0"
+                        >
+                          <div
+                            className={`w-8 h-8 rounded-lg ${color} flex items-center justify-center flex-shrink-0`}
+                          >
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">
+                              {activity.description}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {activity.date
+                                ? formatDistanceToNow(new Date(activity.date), {
+                                    addSuffix: true,
+                                  })
+                                : "Unknown date"}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground">{activity.description}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {activity.date ? formatDistanceToNow(new Date(activity.date), { addSuffix: true }) : 'Unknown date'}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })
+                      );
+                    }
+                  )
                 ) : (
-                  <EmptyState 
+                  <EmptyState
                     title="No recent activity"
                     description="Start solving problems to see your activity here."
                   />
@@ -481,26 +654,44 @@ export default function ProfilePage() {
           <div className="space-y-6">
             <Card className="bg-card border-border shadow-sm">
               <CardContent className="p-6">
-                <h2 className="text-lg font-semibold text-foreground mb-4">Topic Strength</h2>
+                <h2 className="text-lg font-semibold text-foreground mb-4">
+                  Topic Strength
+                </h2>
                 {progress.length > 0 ? (
                   <div className="space-y-4">
-                    {progress.map((topic: { name: string; solved: number; total: number; percentage: number; difficulty: { easy: number; medium: number; hard: number } }) => (
-                      <div key={topic.name}>
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-sm text-foreground">{topic.name}</p>
-                          <span className="text-xs text-muted-foreground">{topic.solved}/{topic.total}</span>
+                    {progress.map(
+                      (topic: {
+                        name: string;
+                        solved: number;
+                        total: number;
+                        percentage: number;
+                        difficulty: {
+                          easy: number;
+                          medium: number;
+                          hard: number;
+                        };
+                      }) => (
+                        <div key={topic.name}>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm text-foreground">
+                              {topic.name}
+                            </p>
+                            <span className="text-xs text-muted-foreground">
+                              {topic.solved}/{topic.total}
+                            </span>
+                          </div>
+                          <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-green-600 to-blue-600"
+                              style={{ width: `${topic.percentage}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-green-600 to-blue-600"
-                            style={{ width: `${topic.percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    )}
                   </div>
                 ) : (
-                  <EmptyState 
+                  <EmptyState
                     title="No progress data"
                     description="Start solving problems to see your topic progress."
                   />
@@ -510,30 +701,46 @@ export default function ProfilePage() {
 
             <Card className="bg-card border-border shadow-sm">
               <CardContent className="p-6">
-                <h2 className="text-lg font-semibold text-foreground mb-4">Languages</h2>
-                {stats?.recentSubmissions && stats.recentSubmissions.length > 0 ? (
+                <h2 className="text-lg font-semibold text-foreground mb-4">
+                  Languages
+                </h2>
+                {stats?.recentSubmissions &&
+                stats.recentSubmissions.length > 0 ? (
                   <div className="space-y-3">
                     {Object.entries(
-                      stats.recentSubmissions.reduce((acc: Record<string, number>, sub) => {
-                        const lang = sub.language || 'Unknown';
-                        acc[lang] = (acc[lang] || 0) + 1;
-                        return acc;
-                      }, {} as Record<string, number>)
+                      stats.recentSubmissions.reduce(
+                        (acc: Record<string, number>, sub) => {
+                          const lang = sub.language || "Unknown";
+                          acc[lang] = (acc[lang] || 0) + 1;
+                          return acc;
+                        },
+                        {} as Record<string, number>
+                      )
                     )
-                      .sort(([, a]: [string, number], [, b]: [string, number]) => b - a)
+                      .sort(
+                        ([, a]: [string, number], [, b]: [string, number]) =>
+                          b - a
+                      )
                       .slice(0, 5)
                       .map(([language, count]: [string, number]) => (
-                        <div key={language} className="flex items-center justify-between">
+                        <div
+                          key={language}
+                          className="flex items-center justify-between"
+                        >
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-blue-500" />
-                            <span className="text-sm text-foreground">{language}</span>
+                            <span className="text-sm text-foreground">
+                              {language}
+                            </span>
                           </div>
-                          <span className="text-sm font-medium text-foreground">{count} submissions</span>
+                          <span className="text-sm font-medium text-foreground">
+                            {count} submissions
+                          </span>
                         </div>
                       ))}
                   </div>
                 ) : (
-                  <EmptyState 
+                  <EmptyState
                     title="No language data"
                     description="Start submitting solutions to see language statistics."
                   />
@@ -546,18 +753,28 @@ export default function ProfilePage() {
         {/* Community */}
         <Card className="bg-card border-border shadow-sm">
           <CardContent className="p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Community</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4">
+              Community
+            </h2>
             <div className="grid grid-cols-3 gap-6 text-center">
               <div>
-                <div className="text-2xl font-bold text-foreground mb-1">4,285</div>
+                <div className="text-2xl font-bold text-foreground mb-1">
+                  4,285
+                </div>
                 <p className="text-xs text-muted-foreground">Reputation</p>
               </div>
               <div>
-                <div className="text-2xl font-bold text-foreground mb-1">47</div>
-                <p className="text-xs text-muted-foreground">Solutions Posted</p>
+                <div className="text-2xl font-bold text-foreground mb-1">
+                  47
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Solutions Posted
+                </p>
               </div>
               <div>
-                <div className="text-2xl font-bold text-foreground mb-1">12.5k</div>
+                <div className="text-2xl font-bold text-foreground mb-1">
+                  12.5k
+                </div>
                 <p className="text-xs text-muted-foreground">Views</p>
               </div>
             </div>
@@ -567,4 +784,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
