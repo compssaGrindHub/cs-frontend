@@ -1,0 +1,8 @@
+when a contest is past, deactivate the "Register" button
+
+fix the contest registration
+
+on contest click, fetch the contest details if done, else open the contest on codeforce
+(or on click just load the contest/id) -if done, show standing with contest link, else just show link to contest
+
+in contest creation by the admin, add problems section, to indicate how many problems are being solved, this easily identifies which problem index were allowed or used in the contest; eg; [ "A", "B", "C", "D", "E", "F"...etc]

@@ -47,7 +47,6 @@ import {
   updateContest,
   deleteContest,
   // TODO: new implementation for private contest implemented by Zigla in the evaluateContest api logic, review later
-  syncContestStandings,
   evaluateContest,
 } from "@/lib/api";
 import { Contest, Platform } from "@/lib/types/contest";
