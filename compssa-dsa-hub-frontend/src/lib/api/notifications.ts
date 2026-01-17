@@ -1,14 +1,14 @@
-import apiClient from './client';
-import { ApiResponse } from '@/lib/types/api';
+import apiClient from "./client";
+import { ApiResponse } from "@/lib/types/api";
 
 // Types
 export type NotificationType =
-  | 'CONTEST_REMINDER'
-  | 'DAILY_QUESTION'
-  | 'ACHIEVEMENT_UNLOCKED'
-  | 'RANK_CHANGE'
-  | 'STREAK_WARNING'
-  | 'SYSTEM_ANNOUNCEMENT';
+  | "CONTEST_REMINDER"
+  | "DAILY_QUESTION"
+  | "ACHIEVEMENT_UNLOCKED"
+  | "RANK_CHANGE"
+  | "STREAK_WARNING"
+  | "SYSTEM_ANNOUNCEMENT";
 
 export interface Notification {
   id: string;
@@ -44,7 +44,7 @@ interface PaginatedNotificationsResponse {
 export const getNotifications = async (
   params?: GetNotificationsParams
 ): Promise<PaginatedNotificationsResponse> => {
-  const response = await apiClient.get('/notifications', { params });
+  const response = await apiClient.get("/notifications", { params });
   const raw = response.data as unknown;
 
   const defaultMeta = {
@@ -55,11 +55,12 @@ export const getNotifications = async (
   };
 
   // If wrapped in ApiResponse
-  if (raw && typeof raw === 'object' && 'success' in raw) {
-    const inner = (raw as ApiResponse<{ data: Notification[]; meta: unknown }>).data;
+  if (raw && typeof raw === "object" && "success" in raw) {
+    const inner = (raw as ApiResponse<{ data: Notification[]; meta: unknown }>)
+      .data;
     return {
       data: inner?.data || [],
-      meta: (inner?.meta as Record<string, unknown>) || defaultMeta,
+      meta: (inner?.meta as any) || defaultMeta,
     };
   }
 
@@ -67,7 +68,7 @@ export const getNotifications = async (
   const direct = raw as { data?: Notification[]; meta?: unknown } | undefined;
   return {
     data: direct?.data || [],
-    meta: (direct?.meta as Record<string, unknown>) || defaultMeta,
+    meta: (direct?.meta as any) || defaultMeta,
   };
 };
 
@@ -76,7 +77,9 @@ export const getNotifications = async (
  * GET /api/notifications/unread-count
  */
 export const getUnreadCount = async (): Promise<number> => {
-  const response = await apiClient.get<ApiResponse<{ unreadCount: number }>>('/notifications/unread-count');
+  const response = await apiClient.get<ApiResponse<{ unreadCount: number }>>(
+    "/notifications/unread-count"
+  );
   return response.data.data?.unreadCount || 0;
 };
 
@@ -93,7 +96,7 @@ export const markNotificationAsRead = async (id: string): Promise<void> => {
  * PUT /api/notifications/read-all
  */
 export const markAllNotificationsAsRead = async (): Promise<void> => {
-  await apiClient.put<ApiResponse<void>>('/notifications/read-all');
+  await apiClient.put<ApiResponse<void>>("/notifications/read-all");
 };
 
 /**
@@ -103,4 +106,3 @@ export const markAllNotificationsAsRead = async (): Promise<void> => {
 export const deleteNotification = async (id: string): Promise<void> => {
   await apiClient.delete<ApiResponse<void>>(`/notifications/${id}`);
 };
-
