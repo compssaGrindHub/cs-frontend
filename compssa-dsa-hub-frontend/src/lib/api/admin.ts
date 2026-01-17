@@ -1,5 +1,5 @@
-import apiClient from './client';
-import { ApiResponse } from '@/lib/types/api';
+import apiClient from "./client";
+import { ApiResponse } from "@/lib/types/api";
 
 // Types
 export interface SystemOverview {
@@ -20,7 +20,7 @@ export interface UserGrowthPoint {
 }
 
 export interface UserGrowth {
-  bucket: 'day' | 'month';
+  bucket: "day" | "month";
   points: UserGrowthPoint[];
 }
 
@@ -35,7 +35,7 @@ export interface Engagement {
 }
 
 export interface AttendanceAnalyticsItem {
-  type: 'LECTURE' | 'PRACTICE' | 'CONTEST' | 'WORKSHOP' | 'OTHER';
+  type: "LECTURE" | "PRACTICE" | "CONTEST" | "WORKSHOP" | "OTHER";
   total: number;
   present: number;
   percentage: number;
@@ -63,7 +63,7 @@ export interface AchievementStats {
   }>;
 }
 
-export interface ContestParticipation {
+export interface AdminContestParticipation {
   total: number;
   avgRank: number;
 }
@@ -93,7 +93,7 @@ interface DateRangeParams {
 }
 
 interface UserGrowthParams extends DateRangeParams {
-  bucket?: 'day' | 'month';
+  bucket?: "day" | "month";
 }
 
 /**
@@ -101,47 +101,85 @@ interface UserGrowthParams extends DateRangeParams {
  * GET /api/admin/overview
  */
 export const getSystemOverview = async (): Promise<SystemOverview> => {
-  const response = await apiClient.get<ApiResponse<SystemOverview>>('/admin/overview');
+  const response = await apiClient.get<ApiResponse<SystemOverview>>(
+    "/admin/overview"
+  );
   return response.data.data as SystemOverview;
 };
 
-export const getUserGrowth = async (params?: UserGrowthParams): Promise<UserGrowth> => {
-  const response = await apiClient.get<ApiResponse<UserGrowth>>('/admin/users/growth', { params });
+export const getUserGrowth = async (
+  params?: UserGrowthParams
+): Promise<UserGrowth> => {
+  const response = await apiClient.get<ApiResponse<UserGrowth>>(
+    "/admin/users/growth",
+    { params }
+  );
   return response.data.data as UserGrowth;
 };
 
-export const getEngagement = async (params?: DateRangeParams): Promise<Engagement> => {
-  const response = await apiClient.get<ApiResponse<Engagement>>('/admin/engagement', { params });
+export const getEngagement = async (
+  params?: DateRangeParams
+): Promise<Engagement> => {
+  const response = await apiClient.get<ApiResponse<Engagement>>(
+    "/admin/engagement",
+    { params }
+  );
   return response.data.data as Engagement;
 };
 
-export const getAttendanceAnalytics = async (params?: DateRangeParams): Promise<AttendanceAnalytics> => {
-  const response = await apiClient.get<ApiResponse<AttendanceAnalytics>>('/admin/attendance/stats', { params });
+export const getAttendanceAnalytics = async (
+  params?: DateRangeParams
+): Promise<AttendanceAnalytics> => {
+  const response = await apiClient.get<ApiResponse<AttendanceAnalytics>>(
+    "/admin/attendance/stats",
+    { params }
+  );
   return response.data.data as AttendanceAnalytics;
 };
 
-export const getNotificationsUsage = async (params?: DateRangeParams): Promise<NotificationsUsage> => {
-  const response = await apiClient.get<ApiResponse<NotificationsUsage>>('/admin/notifications/usage', { params });
+export const getNotificationsUsage = async (
+  params?: DateRangeParams
+): Promise<NotificationsUsage> => {
+  const response = await apiClient.get<ApiResponse<NotificationsUsage>>(
+    "/admin/notifications/usage",
+    { params }
+  );
   return response.data.data as NotificationsUsage;
 };
 
 export const getAchievementsStats = async (): Promise<AchievementStats> => {
-  const response = await apiClient.get<ApiResponse<AchievementStats>>('/admin/achievements/stats');
+  const response = await apiClient.get<ApiResponse<AchievementStats>>(
+    "/admin/achievements/stats"
+  );
   return response.data.data as AchievementStats;
 };
 
-export const getContestParticipation = async (contestId: string): Promise<ContestParticipation> => {
-  const response = await apiClient.get<ApiResponse<ContestParticipation>>(`/admin/contests/${contestId}/participation`);
-  return response.data.data as ContestParticipation;
+export const getAdminContestParticipation = async (
+  contestId: string
+): Promise<AdminContestParticipation> => {
+  const response = await apiClient.get<ApiResponse<AdminContestParticipation>>(
+    `/admin/contests/${contestId}/participation`
+  );
+  return response.data.data as AdminContestParticipation;
 };
 
-export const getSubmissionsStats = async (params?: DateRangeParams): Promise<SubmissionsStats> => {
-  const response = await apiClient.get<ApiResponse<SubmissionsStats>>('/admin/submissions/stats', { params });
+export const getSubmissionsStats = async (
+  params?: DateRangeParams
+): Promise<SubmissionsStats> => {
+  const response = await apiClient.get<ApiResponse<SubmissionsStats>>(
+    "/admin/submissions/stats",
+    { params }
+  );
   return response.data.data as SubmissionsStats;
 };
 
-export const getUsageTimeStats = async (params?: DateRangeParams): Promise<UsageTimeStats> => {
-  const response = await apiClient.get<ApiResponse<UsageTimeStats>>('/admin/usage/time', { params });
+export const getUsageTimeStats = async (
+  params?: DateRangeParams
+): Promise<UsageTimeStats> => {
+  const response = await apiClient.get<ApiResponse<UsageTimeStats>>(
+    "/admin/usage/time",
+    { params }
+  );
   return response.data.data as UsageTimeStats;
 };
 
@@ -156,7 +194,7 @@ export interface ProblemSolveRate {
   accepted: number;
 }
 
-export interface ContestParticipationRate {
+export interface AdminContestParticipationRate {
   participationRate: number;
   totalUsers: number;
   usersWithContests: number;
@@ -172,8 +210,12 @@ export interface EngagementChartItem {
  * Get topic distribution (admin only)
  * GET /api/admin/topics/distribution
  */
-export const getTopicDistribution = async (): Promise<TopicDistributionItem[]> => {
-  const response = await apiClient.get<ApiResponse<TopicDistributionItem[]>>('/admin/topics/distribution');
+export const getTopicDistribution = async (): Promise<
+  TopicDistributionItem[]
+> => {
+  const response = await apiClient.get<ApiResponse<TopicDistributionItem[]>>(
+    "/admin/topics/distribution"
+  );
   return response.data.data as TopicDistributionItem[];
 };
 
@@ -181,8 +223,13 @@ export const getTopicDistribution = async (): Promise<TopicDistributionItem[]> =
  * Get problem solve rate (admin only)
  * GET /api/admin/problems/solve-rate
  */
-export const getProblemSolveRate = async (params?: DateRangeParams): Promise<ProblemSolveRate> => {
-  const response = await apiClient.get<ApiResponse<ProblemSolveRate>>('/admin/problems/solve-rate', { params });
+export const getProblemSolveRate = async (
+  params?: DateRangeParams
+): Promise<ProblemSolveRate> => {
+  const response = await apiClient.get<ApiResponse<ProblemSolveRate>>(
+    "/admin/problems/solve-rate",
+    { params }
+  );
   return response.data.data as ProblemSolveRate;
 };
 
@@ -190,17 +237,25 @@ export const getProblemSolveRate = async (params?: DateRangeParams): Promise<Pro
  * Get contest participation rate (admin only)
  * GET /api/admin/contests/participation-rate
  */
-export const getContestParticipationRate = async (params?: DateRangeParams): Promise<ContestParticipationRate> => {
-  const response = await apiClient.get<ApiResponse<ContestParticipationRate>>('/admin/contests/participation-rate', { params });
-  return response.data.data as ContestParticipationRate;
+export const getAdminContestParticipationRate = async (
+  params?: DateRangeParams
+): Promise<AdminContestParticipationRate> => {
+  const response = await apiClient.get<
+    ApiResponse<AdminContestParticipationRate>
+  >("/admin/contests/participation-rate", { params });
+  return response.data.data as AdminContestParticipationRate;
 };
 
 /**
  * Get engagement chart data (admin only)
  * GET /api/admin/engagement/chart
  */
-export const getEngagementChart = async (params?: DateRangeParams): Promise<EngagementChartItem[]> => {
-  const response = await apiClient.get<ApiResponse<EngagementChartItem[]>>('/admin/engagement/chart', { params });
+export const getEngagementChart = async (
+  params?: DateRangeParams
+): Promise<EngagementChartItem[]> => {
+  const response = await apiClient.get<ApiResponse<EngagementChartItem[]>>(
+    "/admin/engagement/chart",
+    { params }
+  );
   return response.data.data as EngagementChartItem[];
 };
-
