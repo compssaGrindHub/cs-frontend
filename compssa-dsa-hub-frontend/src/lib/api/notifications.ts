@@ -42,10 +42,15 @@ interface PaginatedNotificationsResponse {
  * GET /api/notifications
  */
 export const getNotifications = async (
-  params?: GetNotificationsParams
+  params?: GetNotificationsParams,
 ): Promise<PaginatedNotificationsResponse> => {
   const response = await apiClient.get("/notifications", { params });
-  const raw = response.data as unknown;
+  const raw = response.data;
+
+  console.log(
+    "[Notifications API] Raw response:",
+    JSON.stringify(raw, null, 2),
+  );
 
   const defaultMeta = {
     total: 0,
@@ -54,21 +59,28 @@ export const getNotifications = async (
     totalPages: 0,
   };
 
-  // If wrapped in ApiResponse
-  if (raw && typeof raw === "object" && "success" in raw) {
-    const inner = (raw as ApiResponse<{ data: Notification[]; meta: unknown }>)
-      .data;
+  // Backend returns: { success: true, data: Notification[], meta: {...} }
+  if (raw && typeof raw === "object" && "success" in raw && raw.success) {
+    const notifications = Array.isArray(raw.data) ? raw.data : [];
+    const meta = raw.meta || defaultMeta;
+
+    console.log(
+      "[Notifications API] Parsed notifications count:",
+      notifications.length,
+    );
+
     return {
-      data: inner?.data || [],
-      meta: (inner?.meta as any) || defaultMeta,
+      data: notifications as Notification[],
+      meta: meta as PaginatedNotificationsResponse["meta"],
     };
   }
 
-  // Direct response: { data: Notification[]; meta: {...} }
-  const direct = raw as { data?: Notification[]; meta?: unknown } | undefined;
+  console.log("[Notifications API] Fallback - no success in response");
+
+  // Direct response fallback
   return {
-    data: direct?.data || [],
-    meta: (direct?.meta as any) || defaultMeta,
+    data: Array.isArray(raw?.data) ? raw.data : [],
+    meta: (raw?.meta as PaginatedNotificationsResponse["meta"]) || defaultMeta,
   };
 };
 
@@ -78,7 +90,7 @@ export const getNotifications = async (
  */
 export const getUnreadCount = async (): Promise<number> => {
   const response = await apiClient.get<ApiResponse<{ unreadCount: number }>>(
-    "/notifications/unread-count"
+    "/notifications/unread-count",
   );
   return response.data.data?.unreadCount || 0;
 };

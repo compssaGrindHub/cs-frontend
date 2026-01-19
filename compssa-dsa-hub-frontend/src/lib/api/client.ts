@@ -1,8 +1,5 @@
 import axios from "axios";
 
-// API URL configuration based on environment
-// In development (local), use localhost
-// In production, use the production API URL from environment variable
 const getApiUrl = () => {
   // Check if we're in development mode (set NODE_ENV=development locally)
   if (process.env.NODE_ENV === "development") {
