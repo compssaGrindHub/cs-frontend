@@ -68,7 +68,7 @@ function extractUser(user: unknown): User | null {
 // Get initials from name or username
 function getInitials(
   name: string | null | undefined,
-  fallback: string
+  fallback: string,
 ): string {
   if (name && name.length > 0) {
     return name.slice(0, 2).toUpperCase();
@@ -264,7 +264,7 @@ export default function ProfilePage() {
   const rank = rankData?.rank || 0;
   const activities = useMemo(
     () => (Array.isArray(activityData) ? activityData : []),
-    [activityData]
+    [activityData],
   );
   const progress = progressData?.topics || [];
   const achievements = Array.isArray(achievementsData) ? achievementsData : [];
@@ -296,7 +296,7 @@ export default function ProfilePage() {
           .toISOString()
           .slice(0, 10);
         submissionMap.set(date, (submissionMap.get(date) || 0) + 1);
-      }
+      },
     );
 
     // Generate 52 weeks of data (last year)
@@ -364,39 +364,39 @@ export default function ProfilePage() {
       : user.username;
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background text-foreground p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
         {/* Profile Header */}
         <Card className="bg-card border-border overflow-hidden shadow-sm">
-          <CardContent className="p-8">
-            <div className="flex items-start justify-between mb-6">
-              <div className="flex items-start gap-6">
-                <Avatar className="w-24 h-24 border-2 border-primary">
+          <CardContent className="p-4 md:p-8">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4 md:mb-6">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 md:gap-6">
+                <Avatar className="w-20 h-20 md:w-24 md:h-24 border-2 border-primary">
                   <AvatarImage
                     src={user.profilePicture || undefined}
                     alt={displayName}
                   />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xl md:text-2xl">
                     {getInitials(displayName, user.username)}
                   </AvatarFallback>
                 </Avatar>
 
-                <div className="pt-2">
-                  <h1 className="text-3xl font-bold text-foreground mb-1">
+                <div className="text-center sm:text-left sm:pt-2">
+                  <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1">
                     {displayName}
                   </h1>
-                  <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-muted-foreground text-sm mb-3">
                     <span>@{user.username}</span>
-                    <span>•</span>
-                    <Calendar className="w-4 h-4" />
-                    <span>
+                    <span className="hidden sm:inline">•</span>
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-4 h-4" />
                       Joined {format(new Date(user.createdAt), "MMM yyyy")}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-6 pt-2">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 md:gap-6 pt-2">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-foreground">
+                      <span className="text-xl md:text-2xl font-bold text-foreground">
                         {user.totalRating.toLocaleString()}
                       </span>
                       <span className="text-xs text-muted-foreground">
@@ -404,7 +404,7 @@ export default function ProfilePage() {
                       </span>
                     </div>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-foreground">
+                      <span className="text-xl md:text-2xl font-bold text-foreground">
                         #{rank || "--"}
                       </span>
                       <span className="text-xs text-muted-foreground">
@@ -415,20 +415,22 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full sm:w-auto justify-center sm:justify-end">
                 <Button
                   variant="outline"
+                  size="sm"
                   className="border-border text-foreground hover:bg-muted"
                 >
-                  <Share2 className="w-4 h-4 mr-2" />
-                  Share
+                  <Share2 className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Share</span>
                 </Button>
                 <Button
+                  size="sm"
                   className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
                   onClick={() => router.push("/settings?tab=profile")}
                 >
-                  <Edit3 className="w-4 h-4 mr-2" />
-                  Edit Profile
+                  <Edit3 className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Edit Profile</span>
                 </Button>
               </div>
             </div>
@@ -436,35 +438,37 @@ export default function ProfilePage() {
         </Card>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <Card className="bg-card border-border shadow-sm">
-            <CardContent className="p-6 text-center">
-              <p className="text-muted-foreground text-sm mb-2">
+            <CardContent className="p-4 md:p-6 text-center">
+              <p className="text-muted-foreground text-xs md:text-sm mb-1 md:mb-2">
                 Problems Solved
               </p>
-              <p className="text-3xl font-bold text-foreground">
+              <p className="text-2xl md:text-3xl font-bold text-foreground">
                 {stats?.solvedProblems || 0}
               </p>
             </CardContent>
           </Card>
 
           <Card className="bg-card border-border shadow-sm">
-            <CardContent className="p-6 text-center">
-              <p className="text-muted-foreground text-sm mb-2">Contests</p>
-              <p className="text-3xl font-bold text-foreground">
+            <CardContent className="p-4 md:p-6 text-center">
+              <p className="text-muted-foreground text-xs md:text-sm mb-1 md:mb-2">
+                Contests
+              </p>
+              <p className="text-2xl md:text-3xl font-bold text-foreground">
                 {stats?.contestsParticipated || 0}
               </p>
             </CardContent>
           </Card>
 
           <Card className="bg-card border-border shadow-sm">
-            <CardContent className="p-6 text-center">
-              <p className="text-muted-foreground text-sm mb-2">
+            <CardContent className="p-4 md:p-6 text-center">
+              <p className="text-muted-foreground text-xs md:text-sm mb-1 md:mb-2">
                 Current Streak
               </p>
               <div className="flex items-baseline justify-center gap-1">
-                <Flame className="w-6 h-6 text-orange-500" />
-                <p className="text-3xl font-bold text-foreground">
+                <Flame className="w-5 h-5 md:w-6 md:h-6 text-orange-500" />
+                <p className="text-2xl md:text-3xl font-bold text-foreground">
                   {user.currentStreak || 0}
                 </p>
               </div>
@@ -472,11 +476,13 @@ export default function ProfilePage() {
           </Card>
 
           <Card className="bg-card border-border shadow-sm">
-            <CardContent className="p-6 text-center">
-              <p className="text-muted-foreground text-sm mb-2">Time Spent</p>
+            <CardContent className="p-4 md:p-6 text-center">
+              <p className="text-muted-foreground text-xs md:text-sm mb-1 md:mb-2">
+                Time Spent
+              </p>
               <div className="flex items-baseline justify-center gap-1">
-                <Clock className="w-5 h-5 text-blue-500" />
-                <p className="text-3xl font-bold text-foreground">
+                <Clock className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />
+                <p className="text-2xl md:text-3xl font-bold text-foreground">
                   {hoursSpent > 0
                     ? `${hoursSpent}h ${minutesSpent}m`
                     : `${minutesSpent}m`}
@@ -488,22 +494,22 @@ export default function ProfilePage() {
 
         {/* Contribution Graph */}
         <Card className="bg-card border-border shadow-sm">
-          <CardContent className="p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">
+          <CardContent className="p-4 md:p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-2 md:mb-4">
               Activity
             </h2>
-            <p className="text-xs text-muted-foreground mb-4">
+            <p className="text-xs text-muted-foreground mb-3 md:mb-4">
               {stats?.totalProblems
                 ? `${stats.totalProblems} problems attempted`
                 : "No activity data"}
             </p>
 
             {/* Contribution Graph */}
-            <div className="overflow-x-auto">
-              <div className="flex gap-1 pb-4">
+            <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+              <div className="flex gap-0.5 md:gap-1 pb-4 min-w-max">
                 {/* Weeks */}
                 {Array.from({ length: 52 }).map((_, weekIdx) => (
-                  <div key={weekIdx} className="flex flex-col gap-1">
+                  <div key={weekIdx} className="flex flex-col gap-0.5 md:gap-1">
                     {/* Days in week */}
                     {Array.from({ length: 7 }).map((_, dayIdx) => {
                       const contribution =
@@ -512,8 +518,8 @@ export default function ProfilePage() {
                         <div
                           key={`${weekIdx}-${dayIdx}`}
                           title={`${contribution?.count || 0} submissions`}
-                          className={`w-3 h-3 rounded-sm border ${getContributionColor(
-                            contribution?.level || 0
+                          className={`w-2 h-2 md:w-3 md:h-3 rounded-sm border ${getContributionColor(
+                            contribution?.level || 0,
                           )} cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all`}
                         />
                       );
@@ -523,13 +529,13 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground mt-4 pt-4 border-t border-border">
+            <div className="flex items-center justify-end gap-1.5 md:gap-2 text-xs text-muted-foreground mt-3 md:mt-4 pt-3 md:pt-4 border-t border-border">
               <span>Less</span>
               {[0, 1, 2, 3, 4].map((level) => (
                 <div
                   key={level}
-                  className={`w-3 h-3 rounded-sm ${getContributionColor(
-                    level
+                  className={`w-2 h-2 md:w-3 md:h-3 rounded-sm ${getContributionColor(
+                    level,
                   )}`}
                 />
               ))}
@@ -540,24 +546,24 @@ export default function ProfilePage() {
 
         {/* Achievements */}
         <Card className="bg-card border-border shadow-sm">
-          <CardContent className="p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">
+          <CardContent className="p-4 md:p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-3 md:mb-4">
               Achievements
             </h2>
             {achievements.length > 0 ? (
-              <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 md:gap-4">
                 {achievements.map((userAchievement) => (
                   <div
                     key={userAchievement.id}
-                    className="flex flex-col items-center gap-2"
+                    className="flex flex-col items-center gap-1.5 md:gap-2"
                   >
-                    <div className="w-12 h-12 rounded-full border-2 flex items-center justify-center text-xl border-yellow-500/50 bg-yellow-500/10">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border-2 flex items-center justify-center text-lg md:text-xl border-yellow-500/50 bg-yellow-500/10">
                       {userAchievement.achievement.icon || "🏆"}
                     </div>
-                    <p className="text-xs text-center text-foreground">
+                    <p className="text-xs text-center text-foreground line-clamp-2">
                       {userAchievement.achievement.name}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground hidden sm:block">
                       {format(new Date(userAchievement.earnedAt), "MMM yyyy")}
                     </p>
                   </div>
@@ -572,7 +578,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Recent Activity */}
           <Card className="bg-card border-border shadow-sm">
             <CardContent className="p-6">
@@ -602,17 +608,17 @@ export default function ProfilePage() {
                         activity.metadata?.status === "ACCEPTED"
                           ? CheckCircle2
                           : activity.type === "submission"
-                          ? Code2
-                          : activity.type === "achievement"
-                          ? Trophy
-                          : Code2;
+                            ? Code2
+                            : activity.type === "achievement"
+                              ? Trophy
+                              : Code2;
                       const color =
                         activity.type === "submission" &&
                         activity.metadata?.status === "ACCEPTED"
                           ? "text-green-500 bg-green-500/10"
                           : activity.type === "submission"
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-blue-500 bg-blue-500/10";
+                            ? "text-red-500 bg-red-500/10"
+                            : "text-blue-500 bg-blue-500/10";
 
                       return (
                         <div
@@ -638,7 +644,7 @@ export default function ProfilePage() {
                           </div>
                         </div>
                       );
-                    }
+                    },
                   )
                 ) : (
                   <EmptyState
@@ -687,7 +693,7 @@ export default function ProfilePage() {
                             />
                           </div>
                         </div>
-                      )
+                      ),
                     )}
                   </div>
                 ) : (
@@ -714,12 +720,12 @@ export default function ProfilePage() {
                           acc[lang] = (acc[lang] || 0) + 1;
                           return acc;
                         },
-                        {} as Record<string, number>
-                      )
+                        {} as Record<string, number>,
+                      ),
                     )
                       .sort(
                         ([, a]: [string, number], [, b]: [string, number]) =>
-                          b - a
+                          b - a,
                       )
                       .slice(0, 5)
                       .map(([language, count]: [string, number]) => (
