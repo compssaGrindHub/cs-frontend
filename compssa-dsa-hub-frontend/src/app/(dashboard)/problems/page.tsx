@@ -1,28 +1,35 @@
-'use client';
+"use client";
 
-import { useState, useMemo, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Search, List, LayoutGrid, CheckCircle2, XCircle, Clock } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Search,
+  List,
+  LayoutGrid,
+  CheckCircle2,
+  XCircle,
+  Clock,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { getProblems } from '@/lib/api';
-import { Loading } from '@/components/common/Loading';
-import { EmptyState } from '@/components/common/EmptyState';
-import { Pagination } from '@/components/common/Pagination';
-import Link from 'next/link';
+} from "@/components/ui/select";
+import { getProblems } from "@/lib/api";
+import { Loading } from "@/components/common/Loading";
+import { EmptyState } from "@/components/common/EmptyState";
+import { Pagination } from "@/components/common/Pagination";
+import Link from "next/link";
 
 const difficultyColors = {
-  EASY: 'text-green-500 bg-green-500/10 border-green-500/30',
-  MEDIUM: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/30',
-  HARD: 'text-red-500 bg-red-500/10 border-red-500/30',
+  EASY: "text-green-500 bg-green-500/10 border-green-500/30",
+  MEDIUM: "text-yellow-500 bg-yellow-500/10 border-yellow-500/30",
+  HARD: "text-red-500 bg-red-500/10 border-red-500/30",
 };
 
 const statusIcons = {
@@ -32,26 +39,45 @@ const statusIcons = {
 };
 
 const statusColors = {
-  solved: 'text-green-500',
-  attempted: 'text-yellow-500',
-  unsolved: 'text-muted-foreground',
+  solved: "text-green-500",
+  attempted: "text-yellow-500",
+  unsolved: "text-muted-foreground",
 };
 
 const commonTopics = [
-  'Arrays', 'Hash Table', 'Two Pointers', 'String', 'Dynamic Programming',
-  'Binary Search', 'Tree', 'Graph', 'Backtracking', 'Greedy', 'Math',
-  'Sorting', 'Stack', 'Queue', 'Linked List', 'Heap', 'Trie', 'Union Find',
-  'Sliding Window', 'Bit Manipulation', 'Recursion', 'Matrix', 'Monotonic Stack'
+  "Arrays",
+  "Hash Table",
+  "Two Pointers",
+  "String",
+  "Dynamic Programming",
+  "Binary Search",
+  "Tree",
+  "Graph",
+  "Backtracking",
+  "Greedy",
+  "Math",
+  "Sorting",
+  "Stack",
+  "Queue",
+  "Linked List",
+  "Heap",
+  "Trie",
+  "Union Find",
+  "Sliding Window",
+  "Bit Manipulation",
+  "Recursion",
+  "Matrix",
+  "Monotonic Stack",
 ];
 
 export default function ProblemsPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedPlatform, setSelectedPlatform] = useState('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [selectedDifficulty, setSelectedDifficulty] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedPlatform, setSelectedPlatform] = useState("all");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState('title');
+  const [sortBy, setSortBy] = useState("title");
   const [page, setPage] = useState(1);
 
   const apiParams = useMemo(() => {
@@ -65,27 +91,35 @@ export default function ProblemsPage() {
       params.search = searchQuery;
     }
 
-    if (selectedDifficulty !== 'all') {
+    if (selectedDifficulty !== "all") {
       params.difficulty = selectedDifficulty.toUpperCase();
     }
 
-    if (selectedStatus !== 'all') {
+    if (selectedStatus !== "all") {
       params.status = selectedStatus;
     }
 
-    if (selectedPlatform !== 'all') {
+    if (selectedPlatform !== "all") {
       params.platform = selectedPlatform.toUpperCase();
     }
 
     if (selectedTopics.length > 0) {
-      params.topics = selectedTopics.join(',');
+      params.topics = selectedTopics.join(",");
     }
 
     return params;
-  }, [page, searchQuery, selectedDifficulty, selectedStatus, selectedPlatform, selectedTopics, sortBy]);
+  }, [
+    page,
+    searchQuery,
+    selectedDifficulty,
+    selectedStatus,
+    selectedPlatform,
+    selectedTopics,
+    sortBy,
+  ]);
 
   const { data: problemsData, isLoading } = useQuery({
-    queryKey: ['problems', apiParams],
+    queryKey: ["problems", apiParams],
     queryFn: () => getProblems(apiParams),
   });
 
@@ -93,9 +127,9 @@ export default function ProblemsPage() {
   const meta = problemsData?.meta || null;
 
   const clearAllFilters = () => {
-    setSelectedDifficulty('all');
-    setSelectedStatus('all');
-    setSelectedPlatform('all');
+    setSelectedDifficulty("all");
+    setSelectedStatus("all");
+    setSelectedPlatform("all");
     setSelectedTopics([]);
     setPage(1);
   };
@@ -111,8 +145,8 @@ export default function ProblemsPage() {
   };
 
   // Track previous filter values to reset page only when filters actually change
-  const prevFiltersRef = useRef<string>('');
-  
+  const prevFiltersRef = useRef<string>("");
+
   useEffect(() => {
     // Create a stable key from all filter values
     const filtersKey = JSON.stringify({
@@ -121,7 +155,7 @@ export default function ProblemsPage() {
       selectedStatus,
       selectedPlatform,
       sortBy,
-      selectedTopics: selectedTopics.sort()
+      selectedTopics: selectedTopics.sort(),
     });
 
     // Only reset page if filters actually changed (not just on mount)
@@ -131,59 +165,82 @@ export default function ProblemsPage() {
 
     prevFiltersRef.current = filtersKey;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, selectedDifficulty, selectedStatus, selectedPlatform, sortBy, selectedTopics.length, selectedTopics.join(',')]);
+  }, [
+    searchQuery,
+    selectedDifficulty,
+    selectedStatus,
+    selectedPlatform,
+    sortBy,
+    selectedTopics.length,
+    selectedTopics.join(","),
+  ]);
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-foreground">Problems</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">
+            Problems
+          </h1>
           <div className="flex items-center gap-2">
             <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
+              variant={viewMode === "list" ? "default" : "outline"}
               size="sm"
-              className={viewMode === 'list' ? 'bg-foreground text-background hover:bg-foreground/90' : 'border-border text-foreground hover:bg-foreground/5'}
-              onClick={() => setViewMode('list')}
+              className={
+                viewMode === "list"
+                  ? "bg-foreground text-background hover:bg-foreground/90"
+                  : "border-border text-foreground hover:bg-foreground/5"
+              }
+              onClick={() => setViewMode("list")}
             >
-              <List className="w-4 h-4 mr-2" />
-              List
+              <List className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">List</span>
             </Button>
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
+              variant={viewMode === "grid" ? "default" : "outline"}
               size="sm"
-              className={viewMode === 'grid' ? 'bg-foreground text-background hover:bg-foreground/90' : 'border-border text-foreground hover:bg-foreground/5'}
-              onClick={() => setViewMode('grid')}
+              className={
+                viewMode === "grid"
+                  ? "bg-foreground text-background hover:bg-foreground/90"
+                  : "border-border text-foreground hover:bg-foreground/5"
+              }
+              onClick={() => setViewMode("grid")}
             >
-              <LayoutGrid className="w-4 h-4 mr-2" />
-              Grid
+              <LayoutGrid className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Grid</span>
             </Button>
           </div>
         </div>
 
         {/* Search Bar */}
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
+          <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-4 md:w-5 h-4 md:h-5 text-muted-foreground z-10" />
           <Input
             type="text"
-            placeholder="Search problems by title, topic, or ID..."
+            placeholder="Search problems..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-12 pl-12 pr-4 bg-card border-border"
+            className="w-full h-10 md:h-12 pl-10 md:pl-12 pr-4 bg-card border-border text-sm"
           />
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm text-muted-foreground">Filters:</span>
-          
+        <div className="flex flex-wrap items-center gap-2 md:gap-3">
+          <span className="text-sm text-muted-foreground hidden sm:inline">
+            Filters:
+          </span>
+
           {/* Difficulty */}
-          <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
-            <SelectTrigger className="w-[140px] bg-card border-border text-foreground">
+          <Select
+            value={selectedDifficulty}
+            onValueChange={setSelectedDifficulty}
+          >
+            <SelectTrigger className="w-[110px] md:w-[140px] bg-card border-border text-foreground text-xs md:text-sm">
               <SelectValue placeholder="Difficulty" />
             </SelectTrigger>
             <SelectContent className="bg-card border-border">
-              <SelectItem value="all">Difficulty: All</SelectItem>
+              <SelectItem value="all">All</SelectItem>
               <SelectItem value="easy">Easy</SelectItem>
               <SelectItem value="medium">Medium</SelectItem>
               <SelectItem value="hard">Hard</SelectItem>
@@ -192,12 +249,21 @@ export default function ProblemsPage() {
 
           {/* Topic - Multi-select via checkboxes in dropdown */}
           <Select>
-            <SelectTrigger className="w-[180px] bg-card border-border text-foreground">
-              <SelectValue placeholder={selectedTopics.length > 0 ? `${selectedTopics.length} topics` : 'Topics'} />
+            <SelectTrigger className="w-[120px] md:w-[180px] bg-card border-border text-foreground text-xs md:text-sm">
+              <SelectValue
+                placeholder={
+                  selectedTopics.length > 0
+                    ? `${selectedTopics.length} topics`
+                    : "Topics"
+                }
+              />
             </SelectTrigger>
             <SelectContent className="bg-card border-border max-h-[300px] overflow-y-auto">
               {commonTopics.map((topic) => (
-                <div key={topic} className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/50">
+                <div
+                  key={topic}
+                  className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/50"
+                >
                   <input
                     type="checkbox"
                     checked={selectedTopics.includes(topic)}
@@ -212,11 +278,11 @@ export default function ProblemsPage() {
 
           {/* Status */}
           <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-            <SelectTrigger className="w-[160px] bg-card border-border text-foreground">
+            <SelectTrigger className="w-[110px] md:w-[160px] bg-card border-border text-foreground text-xs md:text-sm">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent className="bg-card border-border">
-              <SelectItem value="all">Status: All</SelectItem>
+              <SelectItem value="all">All</SelectItem>
               <SelectItem value="unsolved">Unsolved</SelectItem>
               <SelectItem value="solved">Solved</SelectItem>
               <SelectItem value="attempted">Attempted</SelectItem>
@@ -225,11 +291,11 @@ export default function ProblemsPage() {
 
           {/* Platform */}
           <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
-            <SelectTrigger className="w-[140px] bg-card border-border text-foreground">
+            <SelectTrigger className="w-[100px] md:w-[140px] bg-card border-border text-foreground text-xs md:text-sm">
               <SelectValue placeholder="Platform" />
             </SelectTrigger>
             <SelectContent className="bg-card border-border">
-              <SelectItem value="all">Platform: All</SelectItem>
+              <SelectItem value="all">All</SelectItem>
               <SelectItem value="leetcode">LeetCode</SelectItem>
               <SelectItem value="codeforces">Codeforces</SelectItem>
               <SelectItem value="custom">Custom</SelectItem>
@@ -239,16 +305,18 @@ export default function ProblemsPage() {
           <Button
             variant="ghost"
             size="sm"
-            className="text-blue-500 hover:text-blue-400 hover:bg-blue-500/10"
+            className="text-blue-500 hover:text-blue-400 hover:bg-blue-500/10 text-xs md:text-sm"
             onClick={clearAllFilters}
           >
-            Clear All
+            Clear
           </Button>
 
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Sort by:</span>
+          <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-2">
+            <span className="text-xs md:text-sm text-muted-foreground hidden md:inline">
+              Sort by:
+            </span>
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[130px] bg-card border-border text-foreground">
+              <SelectTrigger className="w-[100px] md:w-[130px] bg-card border-border text-foreground text-xs md:text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
@@ -262,24 +330,26 @@ export default function ProblemsPage() {
 
         {/* Active Filters */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-muted-foreground">Active:</span>
-          {selectedStatus !== 'all' && (
-            <Badge className="bg-blue-600/20 text-blue-400 border-0">
+          <span className="text-xs md:text-sm text-muted-foreground">
+            Active:
+          </span>
+          {selectedStatus !== "all" && (
+            <Badge className="bg-blue-600/20 text-blue-400 border-0 text-xs">
               {selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1)}
             </Badge>
           )}
           {selectedTopics.map((topic) => (
-            <Badge 
-              key={topic} 
-              className="bg-blue-600/20 text-blue-400 border-0 cursor-pointer hover:bg-blue-600/30"
+            <Badge
+              key={topic}
+              className="bg-blue-600/20 text-blue-400 border-0 cursor-pointer hover:bg-blue-600/30 text-xs"
               onClick={() => toggleTopic(topic)}
             >
               {topic} ×
             </Badge>
           ))}
           {meta && (
-            <span className="text-sm text-muted-foreground ml-2">
-              Showing {((meta.page - 1) * meta.limit) + 1} to {Math.min(meta.page * meta.limit, meta.total)} of {meta.total} problems
+            <span className="text-xs text-muted-foreground ml-2">
+              {meta.total} problems
             </span>
           )}
         </div>
@@ -293,87 +363,115 @@ export default function ProblemsPage() {
           />
         ) : (
           <>
-        {/* Problems List */}
-        <div className="space-y-3">
+            {/* Problems List */}
+            <div className="space-y-2 md:space-y-3">
               {problems.map((problem) => {
                 if (!problem || !problem.id) return null;
-                
-                const StatusIcon = problem.userStatus && statusIcons[problem.userStatus] 
-                  ? statusIcons[problem.userStatus] 
-                  : statusIcons.unsolved;
-                const statusColor = problem.userStatus && statusColors[problem.userStatus]
-                  ? statusColors[problem.userStatus]
-                  : statusColors.unsolved;
-                
-                const difficultyColor = problem.difficulty && difficultyColors[problem.difficulty]
-                  ? difficultyColors[problem.difficulty]
-                  : '';
-                
+
+                const StatusIcon =
+                  problem.userStatus && statusIcons[problem.userStatus]
+                    ? statusIcons[problem.userStatus]
+                    : statusIcons.unsolved;
+                const statusColor =
+                  problem.userStatus && statusColors[problem.userStatus]
+                    ? statusColors[problem.userStatus]
+                    : statusColors.unsolved;
+
+                const difficultyColor =
+                  problem.difficulty && difficultyColors[problem.difficulty]
+                    ? difficultyColors[problem.difficulty]
+                    : "";
+
                 return (
                   <Link
                     key={problem.id}
                     href={`/problems/${problem.slug || problem.id}`}
-                    className="flex items-center gap-4 p-4 bg-card border border-border rounded-lg hover:border-primary/50 transition-colors group cursor-pointer"
+                    className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 md:p-4 bg-card border border-border rounded-lg hover:border-primary/50 transition-colors group cursor-pointer"
                   >
-                    {/* Status Icon */}
-                    <div className="flex items-center justify-center">
-                      <StatusIcon className={`w-5 h-5 ${statusColor}`} />
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      {/* Status Icon */}
+                      <div className="flex items-center justify-center flex-shrink-0">
+                        <StatusIcon
+                          className={`w-4 h-4 md:w-5 md:h-5 ${statusColor}`}
+                        />
+                      </div>
+
+                      {/* Problem Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 md:gap-2 mb-1 md:mb-2">
+                          <h3 className="text-sm md:text-base text-foreground font-medium group-hover:text-primary truncate max-w-[200px] sm:max-w-none">
+                            {problem.title || "Untitled Problem"}
+                          </h3>
+                          {problem.difficulty && (
+                            <Badge
+                              variant="outline"
+                              className={`text-xs ${difficultyColor}`}
+                            >
+                              {problem.difficulty}
+                            </Badge>
+                          )}
+                          {problem.isDailyQuestion && (
+                            <Badge className="bg-purple-500/20 text-purple-400 border-0 text-xs">
+                              Daily
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
+                          {Array.isArray(problem.topics) &&
+                            problem.topics.length > 0 &&
+                            problem.topics.slice(0, 2).map((topic) => (
+                              <Badge
+                                key={topic}
+                                className="bg-blue-600/20 text-blue-400 border-0 text-xs"
+                              >
+                                {topic}
+                              </Badge>
+                            ))}
+                          {Array.isArray(problem.topics) &&
+                            problem.topics.length > 2 && (
+                              <span className="text-xs text-muted-foreground">
+                                +{problem.topics.length - 2}
+                              </span>
+                            )}
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Problem Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-foreground font-medium group-hover:text-primary">
-                          {problem.title || 'Untitled Problem'}
-                        </h3>
-                        {problem.difficulty && (
-                          <Badge variant="outline" className={`text-xs ${difficultyColor}`}>
-                            {problem.difficulty}
-                          </Badge>
-                        )}
-                        {problem.isDailyQuestion && (
-                          <Badge className="bg-purple-500/20 text-purple-400 border-0 text-xs">
-                            Daily
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {Array.isArray(problem.topics) && problem.topics.length > 0 && problem.topics.slice(0, 3).map((topic) => (
-                          <Badge key={topic} className="bg-blue-600/20 text-blue-400 border-0 text-xs">
-                            {topic}
-                          </Badge>
-                        ))}
-                        {Array.isArray(problem.topics) && problem.topics.length > 3 && (
-                          <span className="text-xs text-muted-foreground">+{problem.topics.length - 3} more</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Platform & Acceptance */}
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
+                    {/* Platform & Acceptance + Action */}
+                    <div className="flex items-center justify-between sm:justify-end gap-3 md:gap-4 pl-7 sm:pl-0">
+                      <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground">
                         <span className="text-yellow-500">⚡</span>
-                        <span>{problem.platform || 'Unknown'}</span>
-                        {problem.acceptanceRate !== null && problem.acceptanceRate !== undefined && !isNaN(problem.acceptanceRate) && (
-                          <span className="ml-2">{problem.acceptanceRate.toFixed(1)}%</span>
-                        )}
+                        <span className="hidden sm:inline">
+                          {problem.platform || "Unknown"}
+                        </span>
+                        {problem.acceptanceRate !== null &&
+                          problem.acceptanceRate !== undefined &&
+                          !isNaN(problem.acceptanceRate) && (
+                            <span className="ml-1 sm:ml-2">
+                              {problem.acceptanceRate.toFixed(0)}%
+                            </span>
+                          )}
                       </div>
-                    </div>
 
-                    {/* Action Button */}
-                    {problem.problemLink && (
-                      <Button
-                        size="sm"
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          window.open(problem.problemLink, '_blank');
-                        }}
-                      >
-                        {problem.userStatus === 'attempted' ? 'Resume' : problem.userStatus === 'solved' ? 'View' : 'Solve'}
-                      </Button>
-                    )}
+                      {/* Action Button */}
+                      {problem.problemLink && (
+                        <Button
+                          size="sm"
+                          className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            window.open(problem.problemLink, "_blank");
+                          }}
+                        >
+                          {problem.userStatus === "attempted"
+                            ? "Resume"
+                            : problem.userStatus === "solved"
+                              ? "View"
+                              : "Solve"}
+                        </Button>
+                      )}
+                    </div>
                   </Link>
                 );
               })}
@@ -387,7 +485,7 @@ export default function ProblemsPage() {
                   pageCount={meta.totalPages}
                   onPageChange={setPage}
                 />
-        </div>
+              </div>
             )}
           </>
         )}
@@ -395,4 +493,3 @@ export default function ProblemsPage() {
     </div>
   );
 }
-

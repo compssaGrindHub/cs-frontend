@@ -281,7 +281,7 @@ export default function SettingsPage() {
     },
     onError: (error: { response?: { data?: { error?: string } } }) => {
       toast.error(
-        error.response?.data?.error || "Failed to connect GitHub account"
+        error.response?.data?.error || "Failed to connect GitHub account",
       );
     },
   });
@@ -342,7 +342,7 @@ export default function SettingsPage() {
 
   if (userLoading) {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <div className="min-h-screen bg-background p-4 md:p-6">
         <Loading size="lg" label="Loading settings..." />
       </div>
     );
@@ -358,35 +358,41 @@ export default function SettingsPage() {
       : user.username;
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground mb-1">Settings</h1>
-          <p className="text-sm text-muted-foreground">
+        <div className="mb-4 md:mb-8">
+          <h1 className="text-xl md:text-2xl font-bold text-foreground mb-1">
+            Settings
+          </h1>
+          <p className="text-xs md:text-sm text-muted-foreground">
             Manage your profile, preferences, and account settings.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar Navigation */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
+          {/* Sidebar Navigation - Horizontal scroll on mobile */}
           <div className="lg:col-span-1">
             <div className="bg-card border border-border rounded-lg overflow-hidden">
-              <div className="p-4 space-y-1">
-                {settingsTabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm font-medium ${
-                      activeTab === tab.id
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                    }`}
-                  >
-                    {tab.icon}
-                    {tab.name}
-                  </button>
-                ))}
+              <div className="p-2 md:p-4 overflow-x-auto lg:overflow-visible">
+                <div className="flex lg:flex-col gap-1 lg:space-y-1 min-w-max lg:min-w-0">
+                  {settingsTabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-3 rounded-lg transition-colors text-xs md:text-sm font-medium whitespace-nowrap ${
+                        activeTab === tab.id
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      }`}
+                    >
+                      {tab.icon}
+                      <span className="hidden sm:inline lg:inline">
+                        {tab.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -395,95 +401,97 @@ export default function SettingsPage() {
           <div className="lg:col-span-3">
             {/* Profile Tab */}
             {activeTab === "profile" && (
-              <div className="space-y-6">
+              <div className="space-y-4 md:space-y-6">
                 {/* Public Profile */}
                 <Card className="bg-card border-border">
-                  <CardContent className="p-6">
-                    <h2 className="text-lg font-semibold text-foreground mb-4">
+                  <CardContent className="p-4 md:p-6">
+                    <h2 className="text-base md:text-lg font-semibold text-foreground mb-2 md:mb-4">
                       Public Profile
                     </h2>
-                    <p className="text-sm text-muted-foreground mb-4">
+                    <p className="text-xs md:text-sm text-muted-foreground mb-3 md:mb-4">
                       This information will be displayed on your public profile.
                     </p>
 
                     {/* Avatar */}
-                    <div className="flex items-center gap-4 mb-6">
-                      <Avatar className="w-20 h-20 border-2 border-primary">
+                    <div className="flex flex-col sm:flex-row items-center gap-3 md:gap-4 mb-4 md:mb-6">
+                      <Avatar className="w-16 h-16 md:w-20 md:h-20 border-2 border-primary">
                         <AvatarImage
                           src={
                             profilePicture || user.profilePicture || undefined
                           }
                           alt="Avatar"
                         />
-                        <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                        <AvatarFallback className="bg-primary text-primary-foreground text-xl md:text-2xl">
                           {displayName[0]?.toUpperCase() ||
                             user.username[0]?.toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
+                      <div className="text-center sm:text-left">
                         <Button
                           variant="outline"
-                          className="mb-2"
+                          className="mb-2 text-xs md:text-sm h-8 md:h-10"
                           onClick={() => {
                             const url = prompt("Enter profile picture URL:");
                             if (url) setProfilePicture(url);
                           }}
                         >
-                          <Upload className="w-4 h-4 mr-2" />
+                          <Upload className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
                           Change Avatar
                         </Button>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-[10px] md:text-xs text-muted-foreground">
                           Recommended: 400x400px, JPG, PNG or GIF.
                         </p>
                       </div>
                     </div>
 
                     {/* Form Fields */}
-                    <div className="space-y-4">
+                    <div className="space-y-3 md:space-y-4">
                       <div>
-                        <Label className="text-foreground mb-2 block text-sm">
+                        <Label className="text-foreground mb-1.5 md:mb-2 block text-xs md:text-sm">
                           First Name
                         </Label>
                         <Input
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
-                          className="bg-muted border-border text-foreground"
+                          className="bg-muted border-border text-foreground text-sm h-9 md:h-10"
                           placeholder="First name"
                         />
                       </div>
 
                       <div>
-                        <Label className="text-foreground mb-2 block text-sm">
+                        <Label className="text-foreground mb-1.5 md:mb-2 block text-xs md:text-sm">
                           Last Name
                         </Label>
                         <Input
                           value={lastName}
                           onChange={(e) => setLastName(e.target.value)}
-                          className="bg-muted border-border text-foreground"
+                          className="bg-muted border-border text-foreground text-sm h-9 md:h-10"
                           placeholder="Last name"
                         />
                       </div>
 
                       <div>
-                        <Label className="text-foreground mb-2 block text-sm">
+                        <Label className="text-foreground mb-1.5 md:mb-2 block text-xs md:text-sm">
                           Username
                         </Label>
                         <div className="flex items-center gap-2">
-                          <span className="text-primary font-semibold">@</span>
+                          <span className="text-primary font-semibold text-sm">
+                            @
+                          </span>
                           <Input
                             value={user.username}
                             disabled
-                            className="bg-muted border-border text-muted-foreground"
+                            className="bg-muted border-border text-muted-foreground text-sm h-9 md:h-10"
                           />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
                           Username cannot be changed
                         </p>
                       </div>
                     </div>
 
                     <Button
-                      className="mt-6 bg-primary hover:bg-primary/90 text-primary-foreground"
+                      className="mt-4 md:mt-6 bg-primary hover:bg-primary/90 text-primary-foreground text-xs md:text-sm h-9 md:h-10"
                       onClick={handleSaveProfile}
                       disabled={updateProfileMutation.isPending}
                     >
@@ -496,29 +504,29 @@ export default function SettingsPage() {
 
                 {/* Platform Integrations */}
                 <Card className="bg-card border-border">
-                  <CardContent className="p-6">
-                    <h2 className="text-lg font-semibold text-foreground mb-4">
+                  <CardContent className="p-4 md:p-6">
+                    <h2 className="text-base md:text-lg font-semibold text-foreground mb-2 md:mb-4">
                       Platform Integrations
                     </h2>
-                    <p className="text-sm text-muted-foreground mb-6">
+                    <p className="text-xs md:text-sm text-muted-foreground mb-4 md:mb-6">
                       Connect your coding accounts to sync stats and verify
                       achievements.
                     </p>
 
-                    <div className="space-y-4">
+                    <div className="space-y-3 md:space-y-4">
                       {/* LeetCode */}
-                      <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded bg-yellow-500/20 flex items-center justify-center">
-                            <span className="text-yellow-600 dark:text-yellow-500 font-bold">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 md:p-4 bg-muted rounded-lg border border-border">
+                        <div className="flex items-center gap-2 md:gap-3">
+                          <div className="w-7 h-7 md:w-8 md:h-8 rounded bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+                            <span className="text-yellow-600 dark:text-yellow-500 font-bold text-sm md:text-base">
                               L
                             </span>
                           </div>
-                          <div>
-                            <p className="text-foreground font-medium">
+                          <div className="min-w-0">
+                            <p className="text-foreground font-medium text-sm md:text-base">
                               LeetCode
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-[10px] md:text-xs text-muted-foreground truncate">
                               {leetcodeUsername
                                 ? `Connected as ${leetcodeUsername}`
                                 : "Not connected"}
@@ -532,13 +540,14 @@ export default function SettingsPage() {
                               setLeetcodeUsername(e.target.value)
                             }
                             placeholder="LeetCode username"
-                            className="w-40 bg-muted border-border text-foreground"
+                            className="w-full sm:w-32 md:w-40 bg-muted border-border text-foreground text-xs md:text-sm h-8 md:h-9"
                           />
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={handleSaveProfile}
                             disabled={updateProfileMutation.isPending}
+                            className="text-xs h-8 md:h-9 flex-shrink-0"
                           >
                             {leetcodeUsername ? "Update" : "Connect"}
                           </Button>
@@ -553,11 +562,11 @@ export default function SettingsPage() {
                               CF
                             </span>
                           </div>
-                          <div>
-                            <p className="text-foreground font-medium">
+                          <div className="min-w-0">
+                            <p className="text-foreground font-medium text-sm md:text-base">
                               Codeforces
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-[10px] md:text-xs text-muted-foreground truncate">
                               {codeforcesHandle
                                 ? `Connected as ${codeforcesHandle}`
                                 : "Not connected"}
@@ -571,13 +580,14 @@ export default function SettingsPage() {
                               setCodeforcesHandle(e.target.value)
                             }
                             placeholder="Codeforces handle"
-                            className="w-40 bg-muted border-border text-foreground"
+                            className="w-full sm:w-32 md:w-40 bg-muted border-border text-foreground text-xs md:text-sm h-8 md:h-9"
                           />
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={handleSaveProfile}
                             disabled={updateProfileMutation.isPending}
+                            className="text-xs h-8 md:h-9 flex-shrink-0"
                           >
                             {codeforcesHandle ? "Update" : "Connect"}
                           </Button>
@@ -585,24 +595,24 @@ export default function SettingsPage() {
                       </div>
 
                       {/* GitHub */}
-                      <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded bg-gray-600/20 flex items-center justify-center">
-                            <span className="text-gray-700 dark:text-gray-300 font-bold">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 md:p-4 bg-muted rounded-lg border border-border">
+                        <div className="flex items-center gap-2 md:gap-3">
+                          <div className="w-7 h-7 md:w-8 md:h-8 rounded bg-gray-600/20 flex items-center justify-center flex-shrink-0">
+                            <span className="text-gray-700 dark:text-gray-300 font-bold text-sm md:text-base">
                               GH
                             </span>
                           </div>
-                          <div>
-                            <p className="text-foreground font-medium">
+                          <div className="min-w-0">
+                            <p className="text-foreground font-medium text-sm md:text-base">
                               GitHub
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-[10px] md:text-xs text-muted-foreground truncate">
                               {githubUsername
                                 ? `Connected as ${githubUsername}`
                                 : "Not connected"}
                             </p>
                             {githubRepo && (
-                              <p className="text-xs text-muted-foreground mt-1">
+                              <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1 truncate">
                                 Repository: {githubRepo}
                               </p>
                             )}
@@ -613,6 +623,7 @@ export default function SettingsPage() {
                           size="sm"
                           onClick={() => setShowGithubDialog(true)}
                           disabled={connectGithubMutation.isPending}
+                          className="text-xs h-8 md:h-9 w-full sm:w-auto"
                         >
                           {githubUsername ? "Reconnect" : "Connect"}
                         </Button>
@@ -626,38 +637,43 @@ export default function SettingsPage() {
             {/* Account Tab */}
             {activeTab === "account" && (
               <Card className="bg-card border-border">
-                <CardContent className="p-6">
-                  <h2 className="text-lg font-semibold text-foreground mb-4">
+                <CardContent className="p-4 md:p-6">
+                  <h2 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">
                     Account Settings
                   </h2>
-                  <div className="space-y-4">
+                  <div className="space-y-3 md:space-y-4">
                     <div>
-                      <Label className="text-foreground mb-2 block text-sm">
+                      <Label className="text-foreground mb-1.5 md:mb-2 block text-xs md:text-sm">
                         Email Address
                       </Label>
                       <Input
                         type="email"
                         value="alexander@example.com"
                         disabled
-                        className="bg-muted border-border text-muted-foreground"
+                        className="bg-muted border-border text-muted-foreground text-sm h-9 md:h-10"
                       />
                     </div>
                     <div>
-                      <Label className="text-foreground mb-2 block text-sm">
+                      <Label className="text-foreground mb-1.5 md:mb-2 block text-xs md:text-sm">
                         Password
                       </Label>
-                      <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                      <Button className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs md:text-sm h-8 md:h-10">
                         Change Password
                       </Button>
                     </div>
                     <div>
-                      <Label className="text-foreground mb-2 block text-sm">
+                      <Label className="text-foreground mb-1.5 md:mb-2 block text-xs md:text-sm">
                         Two-Factor Authentication
                       </Label>
-                      <p className="text-sm text-muted-foreground mb-2">
+                      <p className="text-xs md:text-sm text-muted-foreground mb-2">
                         Secure your account with 2FA
                       </p>
-                      <Button variant="outline">Enable 2FA</Button>
+                      <Button
+                        variant="outline"
+                        className="text-xs md:text-sm h-8 md:h-10"
+                      >
+                        Enable 2FA
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -666,10 +682,10 @@ export default function SettingsPage() {
 
             {/* Integrations Tab */}
             {activeTab === "integrations" && (
-              <div className="space-y-6">
+              <div className="space-y-4 md:space-y-6">
                 <Card className="bg-card border-border">
-                  <CardContent className="p-6">
-                    <h2 className="text-lg font-semibold text-foreground mb-4">
+                  <CardContent className="p-4 md:p-6">
+                    <h2 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">
                       Connected Platforms
                     </h2>
                     <p className="text-sm text-muted-foreground mb-6">
@@ -694,54 +710,54 @@ export default function SettingsPage() {
                         </div>
                         <Button
                           variant="outline"
-                          className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-2"
+                          className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-1.5 md:gap-2 text-xs md:text-sm h-8 md:h-10 w-full sm:w-auto"
                         >
-                          <Unlink className="w-4 h-4" />
-                          Disconnect
+                          <Unlink className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                          <span className="hidden sm:inline">Disconnect</span>
                         </Button>
                       </div>
 
                       {/* Codeforces */}
-                      <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded bg-blue-500/20 flex items-center justify-center text-blue-500 font-bold">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 md:p-4 bg-muted rounded-lg border border-border">
+                        <div className="flex items-center gap-2 md:gap-3">
+                          <div className="w-7 h-7 md:w-8 md:h-8 rounded bg-blue-500/20 flex items-center justify-center text-blue-500 font-bold text-sm md:text-base flex-shrink-0">
                             CF
                           </div>
-                          <div>
-                            <p className="text-foreground font-medium">
+                          <div className="min-w-0">
+                            <p className="text-foreground font-medium text-sm md:text-base">
                               Codeforces
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-[10px] md:text-xs text-muted-foreground">
                               Not connected
                             </p>
                           </div>
                         </div>
-                        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs md:text-sm h-8 md:h-10 w-full sm:w-auto">
                           Connect
                         </Button>
                       </div>
 
                       {/* GitHub */}
-                      <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded bg-gray-600/20 flex items-center justify-center text-gray-300 font-bold">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 md:p-4 bg-muted rounded-lg border border-border">
+                        <div className="flex items-center gap-2 md:gap-3">
+                          <div className="w-7 h-7 md:w-8 md:h-8 rounded bg-gray-600/20 flex items-center justify-center text-gray-300 font-bold text-sm md:text-base flex-shrink-0">
                             GH
                           </div>
-                          <div>
-                            <p className="text-foreground font-medium">
+                          <div className="min-w-0">
+                            <p className="text-foreground font-medium text-sm md:text-base">
                               GitHub
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-[10px] md:text-xs text-muted-foreground">
                               Last synced: 5 minutes ago
                             </p>
                           </div>
                         </div>
                         <Button
                           variant="outline"
-                          className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-2"
+                          className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-1.5 md:gap-2 text-xs md:text-sm h-8 md:h-10 w-full sm:w-auto"
                         >
-                          <Unlink className="w-4 h-4" />
-                          Disconnect
+                          <Unlink className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                          <span className="hidden sm:inline">Disconnect</span>
                         </Button>
                       </div>
                     </div>
@@ -753,22 +769,22 @@ export default function SettingsPage() {
             {/* Notifications Tab */}
             {activeTab === "notifications" && (
               <Card className="bg-card border-border">
-                <CardContent className="p-6">
-                  <h2 className="text-lg font-semibold text-foreground mb-4">
+                <CardContent className="p-4 md:p-6">
+                  <h2 className="text-base md:text-lg font-semibold text-foreground mb-2 md:mb-4">
                     Notifications
                   </h2>
-                  <p className="text-sm text-muted-foreground mb-6">
+                  <p className="text-xs md:text-sm text-muted-foreground mb-4 md:mb-6">
                     Manage how you receive updates and reminders.
                   </p>
 
-                  <div className="space-y-4">
+                  <div className="space-y-3 md:space-y-4">
                     {/* Daily Challenge */}
-                    <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
-                      <div>
-                        <p className="text-foreground font-medium">
+                    <div className="flex items-center justify-between gap-3 p-3 md:p-4 bg-muted rounded-lg border border-border">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-foreground font-medium text-sm md:text-base">
                           Daily Challenge Reminder
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-[10px] md:text-xs text-muted-foreground">
                           Receive a notification at 9:00 AM if you haven&apos;t
                           solved the daily problem.
                         </p>
@@ -781,16 +797,17 @@ export default function SettingsPage() {
                             dailyChallenge: checked,
                           })
                         }
+                        className="flex-shrink-0"
                       />
                     </div>
 
                     {/* Contest Alerts */}
-                    <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
-                      <div>
-                        <p className="text-foreground font-medium">
+                    <div className="flex items-center justify-between gap-3 p-3 md:p-4 bg-muted rounded-lg border border-border">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-foreground font-medium text-sm md:text-base">
                           Contest Alerts
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-[10px] md:text-xs text-muted-foreground">
                           Get notified 12 minutes before registered contests
                           begin.
                         </p>
@@ -803,16 +820,17 @@ export default function SettingsPage() {
                             contestAlerts: checked,
                           })
                         }
+                        className="flex-shrink-0"
                       />
                     </div>
 
                     {/* Streak Reminder */}
-                    <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
-                      <div>
-                        <p className="text-foreground font-medium">
+                    <div className="flex items-center justify-between gap-3 p-3 md:p-4 bg-muted rounded-lg border border-border">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-foreground font-medium text-sm md:text-base">
                           Streak Saver
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-[10px] md:text-xs text-muted-foreground">
                           Warning email when your streak is about to expire.
                         </p>
                       </div>
@@ -824,6 +842,7 @@ export default function SettingsPage() {
                             streakReminder: checked,
                           })
                         }
+                        className="flex-shrink-0"
                       />
                     </div>
                   </div>
@@ -833,36 +852,36 @@ export default function SettingsPage() {
 
             {/* Appearance Tab */}
             {activeTab === "appearance" && (
-              <div className="space-y-6">
+              <div className="space-y-4 md:space-y-6">
                 <Card className="bg-card border-border">
-                  <CardContent className="p-6">
-                    <h2 className="text-lg font-semibold text-foreground mb-4">
+                  <CardContent className="p-4 md:p-6">
+                    <h2 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">
                       Theme
                     </h2>
-                    <p className="text-sm text-muted-foreground mb-6">
+                    <p className="text-xs md:text-sm text-muted-foreground mb-4 md:mb-6">
                       Choose how the app should look on your device.
                     </p>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 gap-2 md:gap-4">
                       {/* Light Theme */}
                       <div
                         onClick={() => setTheme("light")}
-                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        className={`p-3 md:p-4 rounded-lg border-2 cursor-pointer transition-all ${
                           theme === "light"
                             ? "border-primary bg-primary/10 shadow-sm"
                             : "border-border bg-card hover:bg-muted"
                         }`}
                       >
-                        <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
                           <Sun
-                            className={`w-5 h-5 ${
+                            className={`w-4 h-4 md:w-5 md:h-5 ${
                               theme === "light"
                                 ? "text-primary"
                                 : "text-muted-foreground"
                             }`}
                           />
                           <span
-                            className={`font-medium ${
+                            className={`font-medium text-sm md:text-base ${
                               theme === "light"
                                 ? "text-primary"
                                 : "text-foreground"
@@ -871,28 +890,28 @@ export default function SettingsPage() {
                             Light
                           </span>
                         </div>
-                        <div className="w-full h-20 bg-gradient-to-b from-gray-50 to-gray-100 rounded border border-border" />
+                        <div className="w-full h-14 md:h-20 bg-gradient-to-b from-gray-50 to-gray-100 rounded border border-border" />
                       </div>
 
                       {/* Dark Theme */}
                       <div
                         onClick={() => setTheme("dark")}
-                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        className={`p-3 md:p-4 rounded-lg border-2 cursor-pointer transition-all ${
                           theme === "dark"
                             ? "border-primary bg-primary/10 shadow-sm"
                             : "border-border bg-card hover:bg-muted"
                         }`}
                       >
-                        <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
                           <Moon
-                            className={`w-5 h-5 ${
+                            className={`w-4 h-4 md:w-5 md:h-5 ${
                               theme === "dark"
                                 ? "text-primary"
                                 : "text-muted-foreground"
                             }`}
                           />
                           <span
-                            className={`font-medium ${
+                            className={`font-medium text-sm md:text-base ${
                               theme === "dark"
                                 ? "text-primary"
                                 : "text-foreground"
@@ -901,28 +920,28 @@ export default function SettingsPage() {
                             Dark
                           </span>
                         </div>
-                        <div className="w-full h-20 bg-gradient-to-b from-gray-900 to-black rounded border border-border" />
+                        <div className="w-full h-14 md:h-20 bg-gradient-to-b from-gray-900 to-black rounded border border-border" />
                       </div>
 
                       {/* Auto Theme */}
                       <div
                         onClick={() => setTheme("system")}
-                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        className={`p-3 md:p-4 rounded-lg border-2 cursor-pointer transition-all ${
                           theme === "system"
                             ? "border-primary bg-primary/10 shadow-sm"
                             : "border-border bg-card hover:bg-muted"
                         }`}
                       >
-                        <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
                           <Monitor
-                            className={`w-5 h-5 ${
+                            className={`w-4 h-4 md:w-5 md:h-5 ${
                               theme === "system"
                                 ? "text-primary"
                                 : "text-muted-foreground"
                             }`}
                           />
                           <span
-                            className={`font-medium ${
+                            className={`font-medium text-sm md:text-base ${
                               theme === "system"
                                 ? "text-primary"
                                 : "text-foreground"
@@ -931,11 +950,11 @@ export default function SettingsPage() {
                             System
                           </span>
                         </div>
-                        <div className="w-full h-20 rounded border border-border bg-gradient-to-r from-gray-100 to-gray-900" />
+                        <div className="w-full h-14 md:h-20 rounded border border-border bg-gradient-to-r from-gray-100 to-gray-900" />
                       </div>
                     </div>
 
-                    <p className="text-xs text-muted-foreground mt-4">
+                    <p className="text-[10px] md:text-xs text-muted-foreground mt-3 md:mt-4">
                       System mode follows your device preference for light or
                       dark.
                     </p>
@@ -943,20 +962,20 @@ export default function SettingsPage() {
                 </Card>
 
                 <Card className="bg-card border-border">
-                  <CardContent className="p-6">
-                    <h2 className="text-lg font-semibold text-foreground mb-4">
+                  <CardContent className="p-4 md:p-6">
+                    <h2 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">
                       Accent Color
                     </h2>
-                    <p className="text-sm text-muted-foreground mb-6">
+                    <p className="text-xs md:text-sm text-muted-foreground mb-4 md:mb-6">
                       Customize the color scheme of the application.
                     </p>
 
-                    <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
+                    <div className="grid grid-cols-6 gap-2 md:gap-3">
                       {accentOptions.map((option) => (
                         <div
                           key={option.id}
                           onClick={() => setAccent(option.id)}
-                          className={`w-12 h-12 rounded-lg cursor-pointer border-2 transition-all ${
+                          className={`w-10 h-10 md:w-12 md:h-12 rounded-lg cursor-pointer border-2 transition-all ${
                             accent === option.id
                               ? "border-primary ring-2 ring-primary/40 shadow-sm"
                               : "border-border hover:border-primary/40"
@@ -971,23 +990,23 @@ export default function SettingsPage() {
             )}
 
             {/* Danger Zone - Always shown */}
-            <Card className="bg-destructive/10 border-destructive/20 mt-8">
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold text-red-500 mb-2">
+            <Card className="bg-destructive/10 border-destructive/20 mt-6 md:mt-8">
+              <CardContent className="p-4 md:p-6">
+                <h2 className="text-base md:text-lg font-semibold text-red-500 mb-1.5 md:mb-2">
                   Danger Zone
                 </h2>
-                <p className="text-sm text-muted-foreground mb-4">
+                <p className="text-xs md:text-sm text-muted-foreground mb-3 md:mb-4">
                   Irreversible actions for your account.
                 </p>
 
                 <Button
                   variant="destructive"
-                  className="bg-destructive hover:bg-destructive/90 gap-2"
+                  className="bg-destructive hover:bg-destructive/90 gap-1.5 md:gap-2 text-xs md:text-sm h-8 md:h-10"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                   Delete Account
                 </Button>
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="text-[10px] md:text-xs text-muted-foreground mt-2">
                   Permanently removes your account and all data.
                 </p>
               </CardContent>

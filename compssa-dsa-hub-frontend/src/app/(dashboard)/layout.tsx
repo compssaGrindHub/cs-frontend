@@ -1,19 +1,20 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/stores/authStore';
-import Sidebar from '@/components/layout/Sidebar';
-import Header from '@/components/layout/Header';
-import { Loading } from '@/components/common/Loading';
-import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
-import { startActivitySession, pingActivity, endActivitySession } from '@/lib/api/activity';
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/lib/stores/authStore";
+import Sidebar from "@/components/layout/Sidebar";
+import Header from "@/components/layout/Header";
+import { Loading } from "@/components/common/Loading";
+import { SidebarProvider, useSidebar } from "@/contexts/SidebarContext";
+import {
+  startActivitySession,
+  pingActivity,
+  endActivitySession,
+} from "@/lib/api/activity";
+import { cn } from "@/lib/utils";
 
-function DashboardLayoutContent({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { isCollapsed } = useSidebar();
   const { user } = useAuthStore();
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -28,14 +29,14 @@ function DashboardLayoutContent({
         // Use Promise.race to add a timeout fallback
         await Promise.race([
           startActivitySession(),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Session start timeout')), 5000)
-          )
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Session start timeout")), 5000),
+          ),
         ]);
         isSessionStartedRef.current = true;
       } catch (error) {
         // Silently fail - don't block the UI
-        console.warn('Activity session start failed (non-critical):', error);
+        console.warn("Activity session start failed (non-critical):", error);
         // Still mark as started to allow pings to work
         isSessionStartedRef.current = true;
       }
@@ -45,15 +46,18 @@ function DashboardLayoutContent({
     startSession();
 
     // Ping every 2 minutes to keep session alive
-    pingIntervalRef.current = setInterval(async () => {
-      if (isSessionStartedRef.current) {
-        try {
-          await pingActivity();
-        } catch (error) {
-          console.error('Failed to ping activity:', error);
+    pingIntervalRef.current = setInterval(
+      async () => {
+        if (isSessionStartedRef.current) {
+          try {
+            await pingActivity();
+          } catch (error) {
+            console.error("Failed to ping activity:", error);
+          }
         }
-      }
-    }, 2 * 60 * 1000); // 2 minutes
+      },
+      2 * 60 * 1000,
+    ); // 2 minutes
 
     // Cleanup on unmount
     return () => {
@@ -79,9 +83,9 @@ function DashboardLayoutContent({
         // Use a shorter timeout and fail silently - activity tracking is non-critical
         Promise.race([
           endActivitySession(),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Session end timeout')), 2000)
-          )
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Session end timeout")), 2000),
+          ),
         ])
           .then(() => {
             isSessionStartedRef.current = false;
@@ -98,23 +102,35 @@ function DashboardLayoutContent({
             isSessionStartedRef.current = true;
           })
           .catch((error) => {
-            console.warn('Activity session start failed (non-critical):', error);
+            console.warn(
+              "Activity session start failed (non-critical):",
+              error,
+            );
             // Still mark as started to allow pings to work
             isSessionStartedRef.current = true;
           });
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [user?.id]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Sidebar />
-      <div className={isCollapsed ? 'pl-20 transition-all duration-300' : 'pl-64 transition-all duration-300'}>
+      {/* Main content area - no left padding on mobile since sidebar is hidden */}
+      <div
+        className={cn(
+          "transition-all duration-300",
+          // On mobile (below lg), no left padding - sidebar is overlay
+          "lg:pl-64",
+          // When sidebar is collapsed on desktop
+          isCollapsed && "lg:pl-20",
+        )}
+      >
         <Header />
         <main className="min-h-[calc(100vh-4rem)] bg-background">
           {children}
@@ -143,7 +159,7 @@ export default function DashboardLayout({
     // After syncing, check if we need to redirect
     if (!isAuthenticated || !user) {
       // Only show loading if we actually need to redirect
-      router.push('/login');
+      router.push("/login");
       return;
     }
 

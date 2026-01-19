@@ -111,7 +111,7 @@ function isContestUpcoming(startTime: string): boolean {
 // Get external contest URL based on platform
 function getExternalContestUrl(
   platform: string,
-  externalId?: string
+  externalId?: string,
 ): string | null {
   if (!externalId) return null;
 
@@ -191,7 +191,7 @@ export default function ContestsPage() {
     ],
     queryFn: () =>
       getContests(
-        activeTab === "past" ? queryParams.completed : queryParams.upcoming
+        activeTab === "past" ? queryParams.completed : queryParams.upcoming,
       ),
     enabled: activeTab !== "my-contests",
   });
@@ -244,12 +244,12 @@ export default function ContestsPage() {
       if (activeTab === "upcoming") {
         // Show contests that haven't ended yet (upcoming or live)
         contests = allContests.filter(
-          (c) => !hasContestEnded(c.startTime, c.duration)
+          (c) => !hasContestEnded(c.startTime, c.duration),
         );
       } else if (activeTab === "past") {
         // Show contests that have ended
         contests = allContests.filter((c) =>
-          hasContestEnded(c.startTime, c.duration)
+          hasContestEnded(c.startTime, c.duration),
         );
       } else {
         contests = allContests;
@@ -272,7 +272,7 @@ export default function ContestsPage() {
       .filter((c) => isContestUpcoming(c.startTime))
       .sort(
         (a, b) =>
-          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+          new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
       );
   }, [contestsData?.data]);
 
@@ -334,7 +334,7 @@ export default function ContestsPage() {
     },
     onError: (
       error: { response?: { status?: number; data?: { error?: string } } },
-      contestId: string
+      contestId: string,
     ) => {
       const errorMessage = error.response?.data?.error || "Failed to register";
 
@@ -375,17 +375,19 @@ export default function ContestsPage() {
   const paginationMeta = contestsData?.meta;
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-foreground">Contests</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">
+            Contests
+          </h1>
           <Button
             variant="outline"
-            className="border-border text-foreground hover:bg-foreground/5"
+            className="border-border text-foreground hover:bg-foreground/5 w-full sm:w-auto"
           >
             <Calendar className="w-4 h-4 mr-2" />
-            Sync Calendar
+            <span className="sm:inline">Sync Calendar</span>
           </Button>
         </div>
 
@@ -402,23 +404,23 @@ export default function ContestsPage() {
             />
           ) : (
             <Card className="bg-gradient-to-br from-muted/50 to-muted/30 border-border">
-              <CardContent className="p-8 text-center">
-                <div className="space-y-4">
-                  <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
-                    <Calendar className="w-8 h-8 text-muted-foreground" />
+              <CardContent className="p-4 md:p-8 text-center">
+                <div className="space-y-3 md:space-y-4">
+                  <div className="w-12 h-12 md:w-16 md:h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
+                    <Calendar className="w-6 h-6 md:w-8 md:h-8 text-muted-foreground" />
                   </div>
                   <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-foreground">
+                    <h2 className="text-lg md:text-xl font-semibold text-foreground">
                       No Upcoming Contests
                     </h2>
-                    <p className="text-muted-foreground max-w-md mx-auto">
+                    <p className="text-sm md:text-base text-muted-foreground max-w-md mx-auto">
                       There are no upcoming contests scheduled at the moment. In
                       the meantime, sharpen your skills with some practice
                       problems!
                     </p>
                   </div>
                   <Link href="/problems">
-                    <Button className="bg-primary hover:bg-primary/90 text-primary-foreground mt-2">
+                    <Button className="bg-primary hover:bg-primary/90 text-primary-foreground mt-2 text-sm md:text-base">
                       Browse Practice Problems
                     </Button>
                   </Link>
@@ -432,45 +434,48 @@ export default function ContestsPage() {
           value={activeTab}
           onValueChange={(v) => setActiveTab(v as TabValue)}
         >
-          <TabsList className="bg-transparent border-b border-white/10 rounded-none w-full justify-start p-0 h-auto">
+          <TabsList className="bg-transparent border-b border-white/10 rounded-none w-full justify-start p-0 h-auto overflow-x-auto">
             <TabsTrigger
               value="upcoming"
-              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-3 text-muted-foreground data-[state=active]:text-foreground"
+              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2 md:pb-3 text-xs md:text-sm text-muted-foreground data-[state=active]:text-foreground whitespace-nowrap"
             >
               Upcoming
             </TabsTrigger>
             <TabsTrigger
               value="my-contests"
-              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-3 text-muted-foreground data-[state=active]:text-foreground"
+              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2 md:pb-3 text-xs md:text-sm text-muted-foreground data-[state=active]:text-foreground whitespace-nowrap"
             >
               My Contests
             </TabsTrigger>
             <TabsTrigger
               value="past"
-              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-3 text-muted-foreground data-[state=active]:text-foreground"
+              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2 md:pb-3 text-xs md:text-sm text-muted-foreground data-[state=active]:text-foreground whitespace-nowrap"
             >
               Past & Virtual
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={activeTab} className="mt-6 space-y-6">
+          <TabsContent
+            value={activeTab}
+            className="mt-4 md:mt-6 space-y-4 md:space-y-6"
+          >
             {/* Filters */}
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1 max-w-md">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-3">
+              <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   type="text"
                   placeholder="Filter contests..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-10 pl-10 pr-4 bg-card border-border"
+                  className="w-full h-9 md:h-10 pl-10 pr-4 bg-card border-border text-sm"
                 />
               </div>
               <Select
                 value={selectedPlatform}
                 onValueChange={setSelectedPlatform}
               >
-                <SelectTrigger className="w-[180px] border-border bg-card">
+                <SelectTrigger className="w-full sm:w-[140px] md:w-[180px] border-border bg-card h-9 md:h-10 text-xs md:text-sm">
                   <SelectValue placeholder="Platform" />
                 </SelectTrigger>
                 <SelectContent>
@@ -564,42 +569,42 @@ function FeaturedContestCard({
 
   return (
     <Card className="bg-gradient-to-br from-blue-900/40 to-blue-950/40 border-blue-500/20 overflow-hidden">
-      <CardContent className="p-8">
-        <div className="flex items-start justify-between">
-          <div className="space-y-4 flex-1">
-            <Badge className="bg-blue-500/20 text-blue-400 border-0">
+      <CardContent className="p-4 md:p-8">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 lg:gap-6">
+          <div className="space-y-3 md:space-y-4 flex-1">
+            <Badge className="bg-blue-500/20 text-blue-400 border-0 text-xs">
               Up Next
             </Badge>
             <div className="space-y-1">
-              <p className="text-sm text-blue-300">
+              <p className="text-xs md:text-sm text-blue-300">
                 Starts {new Date(contest.startTime).toLocaleString()}
               </p>
-              <h2 className="text-3xl font-bold text-foreground">
+              <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground">
                 {contest.name}
               </h2>
             </div>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3 md:gap-4 text-xs md:text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5 md:gap-2">
                 <span className="text-yellow-500">⚡</span>
                 {contest.platform}
               </span>
-              <span className="flex items-center gap-2">
-                <Clock className="w-4 h-4" />
+              <span className="flex items-center gap-1.5 md:gap-2">
+                <Clock className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 {formatDuration(contest.duration)} duration
               </span>
             </div>
             <div className="flex gap-3 pt-2">
               {hasContestEnded(contest.startTime, contest.duration) ? (
-                <Badge className="bg-muted text-muted-foreground border-0 px-4 py-2">
+                <Badge className="bg-muted text-muted-foreground border-0 px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm">
                   Ended
                 </Badge>
               ) : isRegistered ? (
-                <Badge className="bg-green-500/20 text-green-400 border-0 px-4 py-2">
+                <Badge className="bg-green-500/20 text-green-400 border-0 px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm">
                   ✓ Registered
                 </Badge>
               ) : (
                 <Button
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs md:text-sm h-8 md:h-10"
                   onClick={onRegister}
                   disabled={isRegistering}
                 >
@@ -610,17 +615,22 @@ function FeaturedContestCard({
           </div>
 
           {/* Countdown Timer */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-center lg:justify-end gap-2 md:gap-4">
             {countdownItems.map((item, i) => (
-              <div key={item.label} className="flex items-center gap-4">
+              <div
+                key={item.label}
+                className="flex items-center gap-1 md:gap-4"
+              >
                 {i > 0 && (
-                  <span className="text-2xl text-muted-foreground/50">:</span>
+                  <span className="text-lg md:text-2xl text-muted-foreground/50">
+                    :
+                  </span>
                 )}
                 <div className="text-center">
-                  <div className="text-4xl font-bold text-foreground">
+                  <div className="text-xl md:text-3xl lg:text-4xl font-bold text-foreground">
                     {item.value.toString().padStart(2, "0")}
                   </div>
-                  <div className="text-xs text-muted-foreground uppercase mt-1">
+                  <div className="text-[10px] md:text-xs text-muted-foreground uppercase mt-0.5 md:mt-1">
                     {item.label}
                   </div>
                 </div>
@@ -653,20 +663,20 @@ function ContestCard({
       className="bg-card border-border hover:border-primary/50 transition-colors cursor-pointer"
       onClick={onClick}
     >
-      <CardContent className="p-5">
-        <div className="flex items-center gap-4">
-          {/* Date Badge */}
-          <div className="flex-shrink-0 w-16 h-16 bg-primary rounded-lg flex flex-col items-center justify-center">
-            <div className="text-xs text-primary-foreground font-medium">
+      <CardContent className="p-3 md:p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 md:gap-4">
+          {/* Date Badge - Hidden on mobile, shown on sm+ */}
+          <div className="hidden sm:flex flex-shrink-0 w-14 h-14 md:w-16 md:h-16 bg-primary rounded-lg flex-col items-center justify-center">
+            <div className="text-[10px] md:text-xs text-primary-foreground font-medium">
               {date.month}
             </div>
-            <div className="text-2xl font-bold text-primary-foreground">
+            <div className="text-lg md:text-2xl font-bold text-primary-foreground">
               {date.day}
             </div>
           </div>
 
-          {/* Icon */}
-          <div className="flex-shrink-0">
+          {/* Icon - Hidden on mobile */}
+          <div className="hidden md:flex flex-shrink-0">
             <div className="w-10 h-10 rounded-lg bg-foreground/5 flex items-center justify-center">
               <BarChart3 className="w-5 h-5 text-muted-foreground" />
             </div>
@@ -674,56 +684,69 @@ function ContestCard({
 
           {/* Contest Info */}
           <div className="flex-1 min-w-0">
-            <h3 className="text-foreground font-medium mb-2">{contest.name}</h3>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5">
+            <h3 className="text-sm md:text-base text-foreground font-medium mb-1 md:mb-2">
+              {contest.name}
+            </h3>
+            <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm text-muted-foreground">
+              <span className="flex items-center gap-1 md:gap-1.5">
                 <span className="text-yellow-500">⚡</span>
                 {contest.platform}
               </span>
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4" />
+              <span className="flex items-center gap-1 md:gap-1.5">
+                <Clock className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 {formatDuration(contest.duration)}
               </span>
             </div>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground/75 mt-1">
-              <span>{new Date(contest.startTime).toLocaleString()}</span>
+            <div className="flex flex-wrap items-center gap-2 md:gap-4 text-[10px] md:text-xs text-muted-foreground/75 mt-1">
+              {/* Mobile: show date inline since badge is hidden */}
+              <span className="sm:hidden">
+                {date.month} {date.day} •
+              </span>
+              <span>
+                {new Date(contest.startTime).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
               {contest.participantCount > 0 && (
-                <span>
+                <span className="hidden sm:inline">
                   • {contest.participantCount.toLocaleString()} participants
                 </span>
               )}
             </div>
             {isRegistered && (
-              <div className="flex items-center gap-1.5 mt-2">
-                <CheckCircle2 className="w-4 h-4 text-green-500" />
-                <span className="text-sm text-green-500">Registered</span>
+              <div className="flex items-center gap-1 md:gap-1.5 mt-1.5 md:mt-2">
+                <CheckCircle2 className="w-3.5 h-3.5 md:w-4 md:h-4 text-green-500" />
+                <span className="text-xs md:text-sm text-green-500">
+                  Registered
+                </span>
               </div>
             )}
           </div>
 
           {/* Action Button */}
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 self-start sm:self-center">
             {hasContestEnded(contest.startTime, contest.duration) ? (
-              <Badge className="bg-muted text-muted-foreground border-0 px-4 py-2">
+              <Badge className="bg-muted text-muted-foreground border-0 px-2 md:px-4 py-1 md:py-2 text-xs">
                 Ended
               </Badge>
             ) : isRegistered ? (
-              <Badge className="bg-green-500/20 text-green-500 border-0 px-4 py-2">
+              <Badge className="bg-green-500/20 text-green-500 border-0 px-2 md:px-4 py-1 md:py-2 text-xs">
                 ✓ Registered
               </Badge>
             ) : contest.status === "UPCOMING" ? (
               <Button
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground h-8 md:h-10 text-xs md:text-sm px-3 md:px-4"
                 onClick={(e) => {
                   e.stopPropagation();
                   onRegister();
                 }}
                 disabled={isRegistering}
               >
-                {isRegistering ? "Registering..." : "Register"}
+                {isRegistering ? "..." : "Register"}
               </Button>
             ) : (
-              <Badge className="bg-muted text-muted-foreground border-0 px-4 py-2">
+              <Badge className="bg-muted text-muted-foreground border-0 px-2 md:px-4 py-1 md:py-2 text-xs">
                 {contest.status}
               </Badge>
             )}
@@ -753,7 +776,7 @@ function ContestOverlay({
   const live = isContestLive(contest.startTime, contest.duration);
   const externalUrl = getExternalContestUrl(
     contest.platform,
-    contest.externalId
+    contest.externalId,
   );
 
   // Standings state
@@ -809,42 +832,42 @@ function ContestOverlay({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 md:p-4"
       onClick={onClose}
     >
       <Card
         className={`bg-card border-border w-full overflow-hidden ${
-          ended ? "max-w-3xl h-[85vh]" : "max-w-lg"
+          ended ? "max-w-3xl h-[90vh] md:h-[85vh]" : "max-w-lg"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         <CardContent
-          className={`p-6 flex flex-col ${ended ? "h-full" : "space-y-6"}`}
+          className={`p-4 md:p-6 flex flex-col ${ended ? "h-full" : "space-y-4 md:space-y-6"}`}
         >
           {/* Header */}
-          <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge className="bg-primary/20 text-primary border-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-1.5 md:space-y-2 min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
+                <Badge className="bg-primary/20 text-primary border-0 text-[10px] md:text-xs">
                   {contest.platform}
                 </Badge>
                 {live && (
-                  <Badge className="bg-red-500/20 text-red-400 border-0">
+                  <Badge className="bg-red-500/20 text-red-400 border-0 text-[10px] md:text-xs">
                     🔴 Live
                   </Badge>
                 )}
                 {ended && (
-                  <Badge className="bg-muted text-muted-foreground border-0">
+                  <Badge className="bg-muted text-muted-foreground border-0 text-[10px] md:text-xs">
                     Ended
                   </Badge>
                 )}
                 {isRegistered && !ended && (
-                  <Badge className="bg-green-500/20 text-green-400 border-0">
+                  <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] md:text-xs">
                     ✓ Registered
                   </Badge>
                 )}
               </div>
-              <h2 className="text-xl font-bold text-foreground">
+              <h2 className="text-base md:text-xl font-bold text-foreground line-clamp-2">
                 {contest.name}
               </h2>
             </div>
@@ -852,31 +875,30 @@ function ContestOverlay({
               variant="ghost"
               size="icon"
               onClick={onClose}
-              className="text-muted-foreground hover:text-foreground flex-shrink-0"
+              className="text-muted-foreground hover:text-foreground flex-shrink-0 h-8 w-8 md:h-10 md:w-10"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 md:w-5 md:h-5" />
             </Button>
           </div>
 
           {/* Contest Details */}
-          <div className={ended ? "flex-shrink-0 mt-4" : ""}>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                  <Calendar className="w-5 h-5 text-primary" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">
+          <div className={ended ? "flex-shrink-0 mt-3 md:mt-4" : ""}>
+            <div className="space-y-3 md:space-y-4">
+              <div className="grid grid-cols-2 gap-2 md:gap-4">
+                <div className="flex items-center gap-2 md:gap-3 p-2 md:p-3 bg-muted/30 rounded-lg">
+                  <Calendar className="w-4 h-4 md:w-5 md:h-5 text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-[10px] md:text-xs text-muted-foreground">
                       Start Time
                     </div>
-                    <div className="text-sm font-medium text-foreground">
+                    <div className="text-xs md:text-sm font-medium text-foreground truncate">
                       {new Date(contest.startTime).toLocaleDateString("en-US", {
                         weekday: "short",
                         month: "short",
                         day: "numeric",
-                        year: "numeric",
                       })}
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-[10px] md:text-xs text-muted-foreground">
                       {new Date(contest.startTime).toLocaleTimeString("en-US", {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -884,13 +906,13 @@ function ContestOverlay({
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                  <Clock className="w-5 h-5 text-primary" />
+                <div className="flex items-center gap-2 md:gap-3 p-2 md:p-3 bg-muted/30 rounded-lg">
+                  <Clock className="w-4 h-4 md:w-5 md:h-5 text-primary flex-shrink-0" />
                   <div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-[10px] md:text-xs text-muted-foreground">
                       Duration
                     </div>
-                    <div className="text-sm font-medium text-foreground">
+                    <div className="text-xs md:text-sm font-medium text-foreground">
                       {formatDuration(contest.duration)}
                     </div>
                   </div>
@@ -899,13 +921,13 @@ function ContestOverlay({
 
               {/* Participants */}
               {contest.participantCount > 0 && (
-                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                  <Users className="w-5 h-5 text-primary" />
+                <div className="flex items-center gap-2 md:gap-3 p-2 md:p-3 bg-muted/30 rounded-lg">
+                  <Users className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                   <div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-[10px] md:text-xs text-muted-foreground">
                       Participants
                     </div>
-                    <div className="text-sm font-medium text-foreground">
+                    <div className="text-xs md:text-sm font-medium text-foreground">
                       {contest.participantCount.toLocaleString()} registered
                     </div>
                   </div>
@@ -916,24 +938,24 @@ function ContestOverlay({
 
           {/* Standings Table for Ended Contests */}
           {ended && (
-            <div className="flex-1 flex flex-col min-h-0 mt-4">
-              <div className="flex items-center gap-2 flex-shrink-0 mb-3">
-                <Trophy className="w-5 h-5 text-yellow-500" />
-                <h3 className="text-lg font-semibold text-foreground">
+            <div className="flex-1 flex flex-col min-h-0 mt-3 md:mt-4">
+              <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0 mb-2 md:mb-3">
+                <Trophy className="w-4 h-4 md:w-5 md:h-5 text-yellow-500" />
+                <h3 className="text-sm md:text-lg font-semibold text-foreground">
                   Final Standings
                 </h3>
               </div>
 
               {standingsLoading ? (
-                <div className="flex items-center justify-center py-8 flex-1">
+                <div className="flex items-center justify-center py-6 md:py-8 flex-1">
                   <Loading size="md" label="Loading standings..." />
                 </div>
               ) : standingsError ? (
-                <div className="text-center py-8 text-muted-foreground flex-1">
+                <div className="text-center py-6 md:py-8 text-muted-foreground text-sm flex-1">
                   {standingsError}
                 </div>
               ) : standings.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground flex-1">
+                <div className="text-center py-6 md:py-8 text-muted-foreground text-sm flex-1">
                   No standings available yet
                 </div>
               ) : (
@@ -942,19 +964,19 @@ function ContestOverlay({
                     <table className="w-full">
                       <thead className="bg-muted/50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          <th className="px-2 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wider">
                             Rank
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          <th className="px-2 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wider">
                             User
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          <th className="px-2 md:px-4 py-2 md:py-3 text-center text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wider hidden sm:table-cell">
                             Solved
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          <th className="px-2 md:px-4 py-2 md:py-3 text-center text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wider">
                             Points
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          <th className="px-2 md:px-4 py-2 md:py-3 text-center text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wider hidden sm:table-cell">
                             Rating Δ
                           </th>
                         </tr>
@@ -974,10 +996,10 @@ function ContestOverlay({
                                   : "hover:bg-muted/30"
                               } transition-colors`}
                             >
-                              <td className="px-4 py-3 whitespace-nowrap">
-                                <div className="flex items-center gap-2">
+                              <td className="px-2 md:px-4 py-2 md:py-3 whitespace-nowrap">
+                                <div className="flex items-center gap-1 md:gap-2">
                                   <span
-                                    className={`text-sm font-medium ${
+                                    className={`text-xs md:text-sm font-medium ${
                                       standing.rank <= 3
                                         ? "text-foreground"
                                         : "text-muted-foreground"
@@ -986,24 +1008,26 @@ function ContestOverlay({
                                     {standing.rank}
                                   </span>
                                   {medal && (
-                                    <span className="text-lg">{medal}</span>
+                                    <span className="text-sm md:text-lg">
+                                      {medal}
+                                    </span>
                                   )}
                                 </div>
                               </td>
-                              <td className="px-4 py-3 whitespace-nowrap">
-                                <div className="flex items-center gap-3">
-                                  <Avatar className="h-8 w-8">
+                              <td className="px-2 md:px-4 py-2 md:py-3 whitespace-nowrap">
+                                <div className="flex items-center gap-2 md:gap-3">
+                                  <Avatar className="h-6 w-6 md:h-8 md:w-8">
                                     <AvatarImage
                                       src={standing.user.profilePicture}
                                     />
-                                    <AvatarFallback className="text-xs">
+                                    <AvatarFallback className="text-[10px] md:text-xs">
                                       {standing.user.username
                                         .slice(0, 2)
                                         .toUpperCase()}
                                     </AvatarFallback>
                                   </Avatar>
                                   <span
-                                    className={`text-sm font-medium ${
+                                    className={`text-xs md:text-sm font-medium truncate max-w-[80px] md:max-w-none ${
                                       isCurrentUser
                                         ? "text-primary"
                                         : "text-foreground"
@@ -1011,31 +1035,31 @@ function ContestOverlay({
                                   >
                                     {standing.user.username}
                                     {isCurrentUser && (
-                                      <span className="ml-2 text-xs text-primary">
+                                      <span className="ml-1 md:ml-2 text-[10px] md:text-xs text-primary">
                                         (You)
                                       </span>
                                     )}
                                   </span>
                                 </div>
                               </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-center">
-                                <span className="text-sm text-foreground">
+                              <td className="px-2 md:px-4 py-2 md:py-3 whitespace-nowrap text-center hidden sm:table-cell">
+                                <span className="text-xs md:text-sm text-foreground">
                                   {standing.problemsSolved}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-center">
-                                <span className="text-sm font-medium text-foreground">
+                              <td className="px-2 md:px-4 py-2 md:py-3 whitespace-nowrap text-center">
+                                <span className="text-xs md:text-sm font-medium text-foreground">
                                   {standing.totalPoints.toLocaleString()}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-center">
+                              <td className="px-2 md:px-4 py-2 md:py-3 whitespace-nowrap text-center hidden sm:table-cell">
                                 <span
-                                  className={`text-sm font-medium ${
+                                  className={`text-xs md:text-sm font-medium ${
                                     standing.ratingChange > 0
                                       ? "text-green-500"
                                       : standing.ratingChange < 0
-                                      ? "text-red-500"
-                                      : "text-muted-foreground"
+                                        ? "text-red-500"
+                                        : "text-muted-foreground"
                                   }`}
                                 >
                                   {standing.ratingChange > 0 ? "+" : ""}
@@ -1055,16 +1079,16 @@ function ContestOverlay({
 
           {/* Actions */}
           <div
-            className={`flex items-center gap-3 ${
-              ended ? "flex-shrink-0 mt-4" : "pt-2"
+            className={`flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-3 ${
+              ended ? "flex-shrink-0 mt-3 md:mt-4" : "pt-2"
             }`}
           >
             {externalUrl && (
               <Button
-                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground text-xs md:text-sm h-9 md:h-10"
                 onClick={() => window.open(externalUrl, "_blank")}
               >
-                <ExternalLink className="w-4 h-4 mr-2" />
+                <ExternalLink className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
                 Open on {contest.platform}
               </Button>
             )}
@@ -1072,11 +1096,11 @@ function ContestOverlay({
             {!ended && !isRegistered && (
               <Button
                 variant={externalUrl ? "outline" : "default"}
-                className={
+                className={`flex-1 text-xs md:text-sm h-9 md:h-10 ${
                   externalUrl
-                    ? "flex-1"
-                    : "flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
-                }
+                    ? ""
+                    : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                }`}
                 onClick={onRegister}
                 disabled={isRegistering}
               >
