@@ -47,10 +47,10 @@ export const getNotifications = async (
   const response = await apiClient.get("/notifications", { params });
   const raw = response.data;
 
-  console.log(
-    "[Notifications API] Raw response:",
-    JSON.stringify(raw, null, 2),
-  );
+  // console.log(
+  //   "[Notifications API] Raw response:",
+  //   JSON.stringify(raw, null, 2),
+  // );
 
   const defaultMeta = {
     total: 0,
