@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,12 +29,17 @@ import {
   getUserProgress,
 } from "@/lib/api";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 export default function DashboardPage() {
   const { user: currentUser, isAuthenticated } = useAuthStore();
 
   // Fetch user data (optional - use store user as fallback)
-  const { data: userData, isLoading: userLoading } = useQuery({
+  const {
+    data: userData,
+    isLoading: userLoading,
+    error: userError,
+  } = useQuery({
     queryKey: ["currentUser"],
     queryFn: () => getCurrentUser(),
     enabled: isAuthenticated && !!currentUser,
@@ -41,7 +47,11 @@ export default function DashboardPage() {
   });
 
   // Fetch user stats
-  const { data: userStats, isLoading: statsLoading } = useQuery({
+  const {
+    data: userStats,
+    isLoading: statsLoading,
+    error: statsError,
+  } = useQuery({
     queryKey: ["userStats", currentUser?.id],
     queryFn: () => getUserStats(currentUser?.id || ""),
     enabled: !!currentUser?.id,
@@ -82,6 +92,15 @@ export default function DashboardPage() {
     queryFn: () => getUserProgress(currentUser?.id || ""),
     enabled: !!currentUser?.id,
   });
+
+  // Show toast error when dashboard data fails to load
+  useEffect(() => {
+    if (userError || statsError) {
+      toast.error("Failed to load some dashboard data", {
+        description: "Some information may not be available",
+      });
+    }
+  }, [userError, statsError]);
 
   const isLoading =
     userLoading ||

@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -14,14 +14,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -29,58 +29,76 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
-import { Plus, Search, Pencil, Trash2, Upload, ExternalLink, Code2 } from 'lucide-react';
-import { getProblems, createProblem, updateProblem, deleteProblem, bulkImportProblems } from '@/lib/api';
-import { Problem, Platform, Difficulty } from '@/lib/types/problem';
-import { Loading } from '@/components/common/Loading';
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  Upload,
+  ExternalLink,
+  Code2,
+} from "lucide-react";
+import {
+  getProblems,
+  createProblem,
+  updateProblem,
+  deleteProblem,
+  bulkImportProblems,
+} from "@/lib/api";
+import { Problem, Platform, Difficulty } from "@/lib/types/problem";
+import { Loading } from "@/components/common/Loading";
+import { toast } from "sonner";
 
 const platformColors: Record<string, string> = {
-  LEETCODE: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
-  CODEFORCES: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-  CUSTOM: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+  LEETCODE: "bg-orange-500/10 text-orange-500 border-orange-500/20",
+  CODEFORCES: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+  CUSTOM: "bg-purple-500/10 text-purple-500 border-purple-500/20",
 };
 
 const difficultyColors: Record<Difficulty, string> = {
-  EASY: 'bg-green-500/10 text-green-500 border-green-500/20',
-  MEDIUM: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-  HARD: 'bg-red-500/10 text-red-500 border-red-500/20',
+  EASY: "bg-green-500/10 text-green-500 border-green-500/20",
+  MEDIUM: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
+  HARD: "bg-red-500/10 text-red-500 border-red-500/20",
 };
 
 const emptyProblem = {
-  title: '',
-  slug: '',
-  platform: 'LEETCODE' as Platform,
-  difficulty: 'MEDIUM' as Difficulty,
-  problemLink: '',
+  title: "",
+  slug: "",
+  platform: "LEETCODE" as Platform,
+  difficulty: "MEDIUM" as Difficulty,
+  problemLink: "",
   topics: [] as string[],
-  description: '',
+  description: "",
   acceptanceRate: undefined as number | undefined,
 };
 
 export default function AdminProblemsPage() {
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [platformFilter, setPlatformFilter] = useState<Platform | 'ALL'>('ALL');
-  const [difficultyFilter, setDifficultyFilter] = useState<Difficulty | 'ALL'>('ALL');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [platformFilter, setPlatformFilter] = useState<Platform | "ALL">("ALL");
+  const [difficultyFilter, setDifficultyFilter] = useState<Difficulty | "ALL">(
+    "ALL",
+  );
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
   const [formData, setFormData] = useState(emptyProblem);
-  const [topicsInput, setTopicsInput] = useState('');
-  const [bulkData, setBulkData] = useState('');
+  const [topicsInput, setTopicsInput] = useState("");
+  const [bulkData, setBulkData] = useState("");
 
   const { data: problemsData, isLoading } = useQuery({
-    queryKey: ['problems', 'all', platformFilter, difficultyFilter, searchTerm],
-    queryFn: () => getProblems({
-      limit: 50,
-      platform: platformFilter !== 'ALL' ? platformFilter : undefined,
-      difficulty: difficultyFilter !== 'ALL' ? difficultyFilter : undefined,
-      search: searchTerm || undefined,
-    }),
+    queryKey: ["problems", "all", platformFilter, difficultyFilter, searchTerm],
+    queryFn: () =>
+      getProblems({
+        limit: 50,
+        platform: platformFilter !== "ALL" ? platformFilter : undefined,
+        difficulty: difficultyFilter !== "ALL" ? difficultyFilter : undefined,
+        search: searchTerm || undefined,
+      }),
   });
 
   const problems = problemsData?.data || [];
@@ -88,31 +106,32 @@ export default function AdminProblemsPage() {
   const createMutation = useMutation({
     mutationFn: createProblem,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['problems', 'all'] });
-      queryClient.refetchQueries({ queryKey: ['problems', 'all'] });
+      queryClient.invalidateQueries({ queryKey: ["problems", "all"] });
+      queryClient.refetchQueries({ queryKey: ["problems", "all"] });
       setIsCreateDialogOpen(false);
       setFormData(emptyProblem);
-      setTopicsInput('');
+      setTopicsInput("");
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Problem }) => updateProblem(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Problem }) =>
+      updateProblem(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['problems', 'all'] });
-      queryClient.refetchQueries({ queryKey: ['problems', 'all'] });
+      queryClient.invalidateQueries({ queryKey: ["problems", "all"] });
+      queryClient.refetchQueries({ queryKey: ["problems", "all"] });
       setIsEditDialogOpen(false);
       setSelectedProblem(null);
       setFormData(emptyProblem);
-      setTopicsInput('');
+      setTopicsInput("");
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteProblem,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['problems', 'all'] });
-      queryClient.refetchQueries({ queryKey: ['problems', 'all'] });
+      queryClient.invalidateQueries({ queryKey: ["problems", "all"] });
+      queryClient.refetchQueries({ queryKey: ["problems", "all"] });
       setIsDeleteDialogOpen(false);
       setSelectedProblem(null);
     },
@@ -121,18 +140,34 @@ export default function AdminProblemsPage() {
   const bulkImportMutation = useMutation({
     mutationFn: bulkImportProblems,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['problems', 'all'] });
-      queryClient.refetchQueries({ queryKey: ['problems', 'all'] });
+      queryClient.invalidateQueries({ queryKey: ["problems", "all"] });
+      queryClient.refetchQueries({ queryKey: ["problems", "all"] });
       setIsBulkImportOpen(false);
-      setBulkData('');
+      setBulkData("");
     },
   });
 
   const stats = [
-    { label: 'Total Problems', value: problemsData?.meta?.total || 0, color: 'text-blue-500' },
-    { label: 'Easy', value: problems.filter((p) => p.difficulty === 'EASY').length, color: 'text-green-500' },
-    { label: 'Medium', value: problems.filter((p) => p.difficulty === 'MEDIUM').length, color: 'text-yellow-500' },
-    { label: 'Hard', value: problems.filter((p) => p.difficulty === 'HARD').length, color: 'text-red-500' },
+    {
+      label: "Total Problems",
+      value: problemsData?.meta?.total || 0,
+      color: "text-blue-500",
+    },
+    {
+      label: "Easy",
+      value: problems.filter((p) => p.difficulty === "EASY").length,
+      color: "text-green-500",
+    },
+    {
+      label: "Medium",
+      value: problems.filter((p) => p.difficulty === "MEDIUM").length,
+      color: "text-yellow-500",
+    },
+    {
+      label: "Hard",
+      value: problems.filter((p) => p.difficulty === "HARD").length,
+      color: "text-red-500",
+    },
   ];
 
   const handleCreate = () => {
@@ -143,7 +178,10 @@ export default function AdminProblemsPage() {
       difficulty: formData.difficulty,
       problemLink: formData.problemLink,
       description: formData.description,
-      topics: topicsInput.split(',').map((t) => t.trim()).filter(Boolean),
+      topics: topicsInput
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
       acceptanceRate: formData.acceptanceRate,
     });
   };
@@ -160,7 +198,10 @@ export default function AdminProblemsPage() {
         difficulty: formData.difficulty,
         problemLink: formData.problemLink,
         description: formData.description,
-        topics: topicsInput.split(',').map((t) => t.trim()).filter(Boolean),
+        topics: topicsInput
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
         acceptanceRate: formData.acceptanceRate,
       } as Problem,
     });
@@ -177,7 +218,9 @@ export default function AdminProblemsPage() {
       const problemsArray = Array.isArray(parsed) ? parsed : [parsed];
       bulkImportMutation.mutate({ problems: problemsArray });
     } catch {
-      alert('Invalid JSON format');
+      toast.error("Invalid JSON format", {
+        description: "Please check your JSON syntax and try again",
+      });
     }
   };
 
@@ -189,11 +232,11 @@ export default function AdminProblemsPage() {
       platform: problem.platform,
       difficulty: problem.difficulty,
       problemLink: problem.problemLink,
-      description: problem.description || '',
+      description: problem.description || "",
       topics: problem.topics,
       acceptanceRate: problem.acceptanceRate,
     });
-    setTopicsInput(problem.topics.join(', '));
+    setTopicsInput(problem.topics.join(", "));
     setIsEditDialogOpen(true);
   };
 
@@ -215,11 +258,19 @@ export default function AdminProblemsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Problem Management</h1>
-          <p className="text-muted-foreground mt-1">Manage coding problems from various platforms</p>
+          <h1 className="text-3xl font-bold text-foreground">
+            Problem Management
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Manage coding problems from various platforms
+          </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => setIsBulkImportOpen(true)} className="gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setIsBulkImportOpen(true)}
+            className="gap-2"
+          >
             <Upload className="w-4 h-4" />
             Bulk Import
           </Button>
@@ -236,7 +287,9 @@ export default function AdminProblemsPage() {
           <Card key={stat.label} className="bg-card border-border shadow-sm">
             <CardContent className="p-6">
               <p className="text-sm text-muted-foreground">{stat.label}</p>
-              <p className={`text-3xl font-bold mt-2 ${stat.color}`}>{stat.value}</p>
+              <p className={`text-3xl font-bold mt-2 ${stat.color}`}>
+                {stat.value}
+              </p>
             </CardContent>
           </Card>
         ))}
@@ -258,7 +311,10 @@ export default function AdminProblemsPage() {
                 className="pl-9 bg-background border-border"
               />
             </div>
-            <Select value={platformFilter} onValueChange={(v) => setPlatformFilter(v as Platform | 'ALL')}>
+            <Select
+              value={platformFilter}
+              onValueChange={(v) => setPlatformFilter(v as Platform | "ALL")}
+            >
               <SelectTrigger className="w-full md:w-[180px] bg-background border-border">
                 <SelectValue placeholder="Platform" />
               </SelectTrigger>
@@ -269,7 +325,12 @@ export default function AdminProblemsPage() {
                 <SelectItem value="CUSTOM">Custom</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={difficultyFilter} onValueChange={(v) => setDifficultyFilter(v as Difficulty | 'ALL')}>
+            <Select
+              value={difficultyFilter}
+              onValueChange={(v) =>
+                setDifficultyFilter(v as Difficulty | "ALL")
+              }
+            >
               <SelectTrigger className="w-full md:w-[180px] bg-background border-border">
                 <SelectValue placeholder="Difficulty" />
               </SelectTrigger>
@@ -287,18 +348,33 @@ export default function AdminProblemsPage() {
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-muted/50">
-                  <TableHead className="text-muted-foreground">Problem</TableHead>
-                  <TableHead className="text-muted-foreground">Platform</TableHead>
-                  <TableHead className="text-muted-foreground">Difficulty</TableHead>
-                  <TableHead className="text-muted-foreground">Topics</TableHead>
-                  <TableHead className="text-muted-foreground">Acceptance</TableHead>
-                  <TableHead className="text-right text-muted-foreground">Actions</TableHead>
+                  <TableHead className="text-muted-foreground">
+                    Problem
+                  </TableHead>
+                  <TableHead className="text-muted-foreground">
+                    Platform
+                  </TableHead>
+                  <TableHead className="text-muted-foreground">
+                    Difficulty
+                  </TableHead>
+                  <TableHead className="text-muted-foreground">
+                    Topics
+                  </TableHead>
+                  <TableHead className="text-muted-foreground">
+                    Acceptance
+                  </TableHead>
+                  <TableHead className="text-right text-muted-foreground">
+                    Actions
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {problems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell
+                      colSpan={6}
+                      className="text-center py-8 text-muted-foreground"
+                    >
                       No problems found
                     </TableCell>
                   </TableRow>
@@ -309,7 +385,9 @@ export default function AdminProblemsPage() {
                         <div className="flex items-center gap-2">
                           <Code2 className="w-4 h-4 text-muted-foreground" />
                           <div>
-                            <p className="font-medium text-foreground">{problem.title}</p>
+                            <p className="font-medium text-foreground">
+                              {problem.title}
+                            </p>
                             <a
                               href={problem.problemLink}
                               target="_blank"
@@ -322,27 +400,40 @@ export default function AdminProblemsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={platformColors[problem.platform]}>{problem.platform}</Badge>
+                        <Badge className={platformColors[problem.platform]}>
+                          {problem.platform}
+                        </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge className={difficultyColors[problem.difficulty]}>{problem.difficulty}</Badge>
+                        <Badge className={difficultyColors[problem.difficulty]}>
+                          {problem.difficulty}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {problem.topics.slice(0, 2).map((topic) => (
-                            <Badge key={topic} variant="outline" className="text-xs bg-muted">
+                            <Badge
+                              key={topic}
+                              variant="outline"
+                              className="text-xs bg-muted"
+                            >
                               {topic}
                             </Badge>
                           ))}
                           {problem.topics.length > 2 && (
-                            <Badge variant="outline" className="text-xs bg-muted">
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-muted"
+                            >
                               +{problem.topics.length - 2}
                             </Badge>
                           )}
                         </div>
                       </TableCell>
                       <TableCell className="text-foreground">
-                        {problem.acceptanceRate ? `${problem.acceptanceRate.toFixed(1)}%` : 'N/A'}
+                        {problem.acceptanceRate
+                          ? `${problem.acceptanceRate.toFixed(1)}%`
+                          : "N/A"}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -377,7 +468,9 @@ export default function AdminProblemsPage() {
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-2xl bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Add New Problem</DialogTitle>
+            <DialogTitle className="text-foreground">
+              Add New Problem
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground">
               Enter problem details to add to the platform
             </DialogDescription>
@@ -390,7 +483,9 @@ export default function AdminProblemsPage() {
               <Input
                 id="title"
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
                 className="bg-background border-border"
                 placeholder="e.g., Two Sum"
               />
@@ -403,7 +498,9 @@ export default function AdminProblemsPage() {
                 <Input
                   id="slug"
                   value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, slug: e.target.value })
+                  }
                   className="bg-background border-border"
                   placeholder="e.g., two-sum"
                 />
@@ -415,7 +512,9 @@ export default function AdminProblemsPage() {
                 <Input
                   id="link"
                   value={formData.problemLink}
-                  onChange={(e) => setFormData({ ...formData, problemLink: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, problemLink: e.target.value })
+                  }
                   className="bg-background border-border"
                   placeholder="https://..."
                 />
@@ -428,7 +527,9 @@ export default function AdminProblemsPage() {
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 className="bg-background border-border"
                 placeholder="Problem description..."
               />
@@ -440,7 +541,9 @@ export default function AdminProblemsPage() {
                 </Label>
                 <Select
                   value={formData.platform}
-                  onValueChange={(v) => setFormData({ ...formData, platform: v as Platform })}
+                  onValueChange={(v) =>
+                    setFormData({ ...formData, platform: v as Platform })
+                  }
                 >
                   <SelectTrigger className="bg-background border-border">
                     <SelectValue />
@@ -458,7 +561,9 @@ export default function AdminProblemsPage() {
                 </Label>
                 <Select
                   value={formData.difficulty}
-                  onValueChange={(v) => setFormData({ ...formData, difficulty: v as Difficulty })}
+                  onValueChange={(v) =>
+                    setFormData({ ...formData, difficulty: v as Difficulty })
+                  }
                 >
                   <SelectTrigger className="bg-background border-border">
                     <SelectValue />
@@ -477,8 +582,15 @@ export default function AdminProblemsPage() {
                 <Input
                   id="acceptance"
                   type="number"
-                  value={formData.acceptanceRate || ''}
-                  onChange={(e) => setFormData({ ...formData, acceptanceRate: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  value={formData.acceptanceRate || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      acceptanceRate: e.target.value
+                        ? parseFloat(e.target.value)
+                        : undefined,
+                    })
+                  }
                   className="bg-background border-border"
                   placeholder="0-100"
                 />
@@ -498,11 +610,19 @@ export default function AdminProblemsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={!formData.title || !formData.slug || createMutation.isPending}>
-              {createMutation.isPending ? 'Creating...' : 'Add Problem'}
+            <Button
+              onClick={handleCreate}
+              disabled={
+                !formData.title || !formData.slug || createMutation.isPending
+              }
+            >
+              {createMutation.isPending ? "Creating..." : "Add Problem"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -513,7 +633,9 @@ export default function AdminProblemsPage() {
         <DialogContent className="max-w-2xl bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-foreground">Edit Problem</DialogTitle>
-            <DialogDescription className="text-muted-foreground">Update problem details</DialogDescription>
+            <DialogDescription className="text-muted-foreground">
+              Update problem details
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -523,7 +645,9 @@ export default function AdminProblemsPage() {
               <Input
                 id="edit-title"
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
                 className="bg-background border-border"
               />
             </div>
@@ -534,7 +658,9 @@ export default function AdminProblemsPage() {
               <Textarea
                 id="edit-description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 className="bg-background border-border"
               />
             </div>
@@ -546,7 +672,9 @@ export default function AdminProblemsPage() {
                 <Input
                   id="edit-slug"
                   value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, slug: e.target.value })
+                  }
                   className="bg-background border-border"
                 />
               </div>
@@ -557,7 +685,9 @@ export default function AdminProblemsPage() {
                 <Input
                   id="edit-link"
                   value={formData.problemLink}
-                  onChange={(e) => setFormData({ ...formData, problemLink: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, problemLink: e.target.value })
+                  }
                   className="bg-background border-border"
                 />
               </div>
@@ -569,7 +699,9 @@ export default function AdminProblemsPage() {
                 </Label>
                 <Select
                   value={formData.platform}
-                  onValueChange={(v) => setFormData({ ...formData, platform: v as Platform })}
+                  onValueChange={(v) =>
+                    setFormData({ ...formData, platform: v as Platform })
+                  }
                 >
                   <SelectTrigger className="bg-background border-border">
                     <SelectValue />
@@ -587,7 +719,9 @@ export default function AdminProblemsPage() {
                 </Label>
                 <Select
                   value={formData.difficulty}
-                  onValueChange={(v) => setFormData({ ...formData, difficulty: v as Difficulty })}
+                  onValueChange={(v) =>
+                    setFormData({ ...formData, difficulty: v as Difficulty })
+                  }
                 >
                   <SelectTrigger className="bg-background border-border">
                     <SelectValue />
@@ -606,8 +740,15 @@ export default function AdminProblemsPage() {
                 <Input
                   id="edit-acceptance"
                   type="number"
-                  value={formData.acceptanceRate || ''}
-                  onChange={(e) => setFormData({ ...formData, acceptanceRate: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  value={formData.acceptanceRate || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      acceptanceRate: e.target.value
+                        ? parseFloat(e.target.value)
+                        : undefined,
+                    })
+                  }
                   className="bg-background border-border"
                 />
               </div>
@@ -625,11 +766,14 @@ export default function AdminProblemsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button onClick={handleEdit} disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -639,17 +783,27 @@ export default function AdminProblemsPage() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Delete Problem</DialogTitle>
+            <DialogTitle className="text-foreground">
+              Delete Problem
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Are you sure you want to delete &quot;{selectedProblem?.title}&quot;? This action cannot be undone.
+              Are you sure you want to delete &quot;{selectedProblem?.title}
+              &quot;? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>
-              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -659,7 +813,9 @@ export default function AdminProblemsPage() {
       <Dialog open={isBulkImportOpen} onOpenChange={setIsBulkImportOpen}>
         <DialogContent className="max-w-3xl bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Bulk Import Problems</DialogTitle>
+            <DialogTitle className="text-foreground">
+              Bulk Import Problems
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground">
               Paste JSON array of problems to import multiple at once
             </DialogDescription>
@@ -673,11 +829,17 @@ export default function AdminProblemsPage() {
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsBulkImportOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsBulkImportOpen(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={handleBulkImport} disabled={!bulkData.trim() || bulkImportMutation.isPending}>
-              {bulkImportMutation.isPending ? 'Importing...' : 'Import'}
+            <Button
+              onClick={handleBulkImport}
+              disabled={!bulkData.trim() || bulkImportMutation.isPending}
+            >
+              {bulkImportMutation.isPending ? "Importing..." : "Import"}
             </Button>
           </DialogFooter>
         </DialogContent>

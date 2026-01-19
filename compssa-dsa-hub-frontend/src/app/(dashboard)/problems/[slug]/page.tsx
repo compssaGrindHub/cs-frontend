@@ -1,33 +1,49 @@
-'use client';
+"use client";
 
-import { use } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useAuthStore } from '@/lib/stores/authStore';
-import { getProblemBySlug, getProblemStats } from '@/lib/api/problems';
-import { getUserSubmissions } from '@/lib/api/submissions';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Loading } from '@/components/common/Loading';
-import { EmptyState } from '@/components/common/EmptyState';
-import { CheckCircle2, XCircle, Clock, ExternalLink, Code2, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
+import { use, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useAuthStore } from "@/lib/stores/authStore";
+import { getProblemBySlug, getProblemStats } from "@/lib/api/problems";
+import { getUserSubmissions } from "@/lib/api/submissions";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Loading } from "@/components/common/Loading";
+import { EmptyState } from "@/components/common/EmptyState";
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ExternalLink,
+  Code2,
+  ArrowLeft,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { toast } from "sonner";
 
 const difficultyColors = {
-  EASY: 'text-green-500 bg-green-500/10 border-green-500/30',
-  MEDIUM: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/30',
-  HARD: 'text-red-500 bg-red-500/10 border-red-500/30',
+  EASY: "text-green-500 bg-green-500/10 border-green-500/30",
+  MEDIUM: "text-yellow-500 bg-yellow-500/10 border-yellow-500/30",
+  HARD: "text-red-500 bg-red-500/10 border-red-500/30",
 };
 
-export default function ProblemDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+export default function ProblemDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
   const { slug } = use(params);
   const router = useRouter();
   const { user } = useAuthStore();
 
-  const { data: problemData, isLoading: problemLoading } = useQuery({
-    queryKey: ['problem', slug],
+  const {
+    data: problemData,
+    isLoading: problemLoading,
+    error: problemError,
+  } = useQuery({
+    queryKey: ["problem", slug],
     queryFn: async () => {
       const result = await getProblemBySlug(slug);
       return result;
@@ -36,10 +52,19 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
 
   const problem = problemData?.data;
 
+  // Show toast error when problem fails to load
+  useEffect(() => {
+    if (problemError) {
+      toast.error("Failed to load problem", {
+        description: "The problem could not be found",
+      });
+    }
+  }, [problemError]);
+
   const { data: statsData } = useQuery({
-    queryKey: ['problemStats', problem?.id],
+    queryKey: ["problemStats", problem?.id],
     queryFn: async () => {
-      if (!problem?.id) throw new Error('Problem ID is required');
+      if (!problem?.id) throw new Error("Problem ID is required");
       const result = await getProblemStats(problem.id);
       return result;
     },
@@ -49,17 +74,23 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
   const stats = statsData?.data;
 
   const { data: submissionsData } = useQuery({
-    queryKey: ['userSubmissions', user?.id, problem?.id],
+    queryKey: ["userSubmissions", user?.id, problem?.id],
     queryFn: async () => {
-      if (!user?.id || !problem?.id) throw new Error('User ID and Problem ID are required');
-      const result = await getUserSubmissions(user.id, { problemId: problem.id, limit: 10 });
+      if (!user?.id || !problem?.id)
+        throw new Error("User ID and Problem ID are required");
+      const result = await getUserSubmissions(user.id, {
+        problemId: problem.id,
+        limit: 10,
+      });
       return result;
     },
     enabled: !!user?.id && !!problem?.id,
     refetchOnWindowFocus: true,
   });
 
-  const submissions = Array.isArray(submissionsData?.data) ? submissionsData.data : [];
+  const submissions = Array.isArray(submissionsData?.data)
+    ? submissionsData.data
+    : [];
 
   if (problemLoading) {
     return (
@@ -97,9 +128,14 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold text-foreground">{problem.title || 'Untitled Problem'}</h1>
+              <h1 className="text-3xl font-bold text-foreground">
+                {problem.title || "Untitled Problem"}
+              </h1>
               {problem.difficulty && difficultyColors[problem.difficulty] && (
-                <Badge variant="outline" className={difficultyColors[problem.difficulty]}>
+                <Badge
+                  variant="outline"
+                  className={difficultyColors[problem.difficulty]}
+                >
                   {problem.difficulty}
                 </Badge>
               )}
@@ -110,13 +146,17 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
               )}
             </div>
             <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-              <span>{problem.platform || 'Unknown'}</span>
-              {problem.acceptanceRate !== null && problem.acceptanceRate !== undefined && !isNaN(problem.acceptanceRate) && (
-                <>
-                  <span>•</span>
-                  <span>Acceptance Rate: {problem.acceptanceRate.toFixed(1)}%</span>
-                </>
-              )}
+              <span>{problem.platform || "Unknown"}</span>
+              {problem.acceptanceRate !== null &&
+                problem.acceptanceRate !== undefined &&
+                !isNaN(problem.acceptanceRate) && (
+                  <>
+                    <span>•</span>
+                    <span>
+                      Acceptance Rate: {problem.acceptanceRate.toFixed(1)}%
+                    </span>
+                  </>
+                )}
               {stats && (
                 <>
                   <span>•</span>
@@ -125,19 +165,31 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {Array.isArray(problem.topics) && problem.topics.length > 0 && problem.topics.map((topic) => (
-                <Badge key={topic} className="bg-blue-600/20 text-blue-400 border-0">
-                  {topic}
-                </Badge>
-              ))}
+              {Array.isArray(problem.topics) &&
+                problem.topics.length > 0 &&
+                problem.topics.map((topic) => (
+                  <Badge
+                    key={topic}
+                    className="bg-blue-600/20 text-blue-400 border-0"
+                  >
+                    {topic}
+                  </Badge>
+                ))}
             </div>
           </div>
           <div className="flex items-center gap-2">
             {problem.problemLink && (
-              <Link href={problem.problemLink} target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" className="border-border text-foreground">
+              <Link
+                href={problem.problemLink}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button
+                  variant="outline"
+                  className="border-border text-foreground"
+                >
                   <ExternalLink className="w-4 h-4 mr-2" />
-                  Open on {problem.platform || 'Platform'}
+                  Open on {problem.platform || "Platform"}
                 </Button>
               </Link>
             )}
@@ -156,13 +208,17 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
             {/* Description */}
             <Card className="bg-card border-border">
               <CardContent className="p-6">
-                <h2 className="text-xl font-semibold text-foreground mb-4">Description</h2>
+                <h2 className="text-xl font-semibold text-foreground mb-4">
+                  Description
+                </h2>
                 <div
                   className="prose prose-invert max-w-none text-foreground"
-                  dangerouslySetInnerHTML={{ 
-                    __html: problem.description && typeof problem.description === 'string' 
-                      ? problem.description 
-                      : 'No description available.' 
+                  dangerouslySetInnerHTML={{
+                    __html:
+                      problem.description &&
+                      typeof problem.description === "string"
+                        ? problem.description
+                        : "No description available.",
                   }}
                 />
               </CardContent>
@@ -172,7 +228,9 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
             {user && (
               <Card className="bg-card border-border">
                 <CardContent className="p-6">
-                  <h2 className="text-xl font-semibold text-foreground mb-4">Your Submissions</h2>
+                  <h2 className="text-xl font-semibold text-foreground mb-4">
+                    Your Submissions
+                  </h2>
                   {submissions.length === 0 ? (
                     <EmptyState
                       title="No submissions yet"
@@ -183,17 +241,17 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
                       {submissions.map((submission: any) => {
                         if (!submission || !submission.id) return null;
                         const StatusIcon =
-                          submission.status === 'ACCEPTED'
+                          submission.status === "ACCEPTED"
                             ? CheckCircle2
-                            : submission.status === 'WRONG_ANSWER'
-                            ? XCircle
-                            : Clock;
+                            : submission.status === "WRONG_ANSWER"
+                              ? XCircle
+                              : Clock;
                         const statusColor =
-                          submission.status === 'ACCEPTED'
-                            ? 'text-green-500'
-                            : submission.status === 'WRONG_ANSWER'
-                            ? 'text-red-500'
-                            : 'text-yellow-500';
+                          submission.status === "ACCEPTED"
+                            ? "text-green-500"
+                            : submission.status === "WRONG_ANSWER"
+                              ? "text-red-500"
+                              : "text-yellow-500";
 
                         return (
                           <div
@@ -201,13 +259,18 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
                             className="flex items-center justify-between p-3 bg-muted rounded-lg border border-border"
                           >
                             <div className="flex items-center gap-3">
-                              <StatusIcon className={`w-5 h-5 ${statusColor}`} />
+                              <StatusIcon
+                                className={`w-5 h-5 ${statusColor}`}
+                              />
                               <div>
                                 <p className="text-sm font-medium text-foreground">
                                   {submission.language} • {submission.status}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {format(new Date(submission.submissionTime), 'MMM d, yyyy h:mm a')}
+                                  {format(
+                                    new Date(submission.submissionTime),
+                                    "MMM d, yyyy h:mm a",
+                                  )}
                                 </p>
                               </div>
                             </div>
@@ -237,16 +300,26 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
             {stats && (
               <Card className="bg-card border-border">
                 <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold text-foreground mb-4">Statistics</h3>
+                  <h3 className="text-lg font-semibold text-foreground mb-4">
+                    Statistics
+                  </h3>
                   <div className="space-y-3">
                     <div>
-                      <p className="text-sm text-muted-foreground">Total Submissions</p>
-                      <p className="text-2xl font-bold text-foreground">{stats.totalSubmissions || 0}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Total Submissions
+                      </p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {stats.totalSubmissions || 0}
+                      </p>
                     </div>
                     {stats.acceptedSubmissions !== undefined && (
                       <div>
-                        <p className="text-sm text-muted-foreground">Accepted</p>
-                        <p className="text-2xl font-bold text-green-500">{stats.acceptedSubmissions}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Accepted
+                        </p>
+                        <p className="text-2xl font-bold text-green-500">
+                          {stats.acceptedSubmissions}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -259,4 +332,3 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ slug: 
     </div>
   );
 }
-

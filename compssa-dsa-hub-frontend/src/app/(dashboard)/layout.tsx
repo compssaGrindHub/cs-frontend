@@ -52,7 +52,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           try {
             await pingActivity();
           } catch (error) {
-            console.error("Failed to ping activity:", error);
+            // Activity tracking is non-critical, fail silently
+            console.warn("Failed to ping activity (non-critical):", error);
           }
         }
       },

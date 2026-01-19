@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Loading } from "@/components/common/Loading";
 import { EmptyState } from "@/components/common/EmptyState";
 import { getUserAttendance, getAttendanceStats } from "@/lib/api/attendance";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 const levelColors = {
   0: "bg-muted border-border/60",
@@ -23,19 +24,41 @@ const levelColors = {
 export default function AttendancePage() {
   const { user } = useAuthStore();
 
-  const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
+  const {
+    data: attendanceData,
+    isLoading: attendanceLoading,
+    error: attendanceError,
+  } = useQuery({
     queryKey: ["userAttendance", user?.id],
     queryFn: () => getUserAttendance(user!.id),
     enabled: !!user?.id,
     refetchInterval: 30000,
   });
 
-  const { data: statsData, isLoading: statsLoading } = useQuery({
+  const {
+    data: statsData,
+    isLoading: statsLoading,
+    error: statsError,
+  } = useQuery({
     queryKey: ["attendanceStats", user?.id],
     queryFn: () => getAttendanceStats(user!.id),
     enabled: !!user?.id,
     refetchInterval: 30000,
   });
+
+  // Show toast error when attendance data fails to load
+  useEffect(() => {
+    if (attendanceError) {
+      toast.error("Failed to load attendance data", {
+        description: "Please try refreshing the page",
+      });
+    }
+    if (statsError) {
+      toast.error("Failed to load attendance statistics", {
+        description: "Some stats may not be available",
+      });
+    }
+  }, [attendanceError, statsError]);
 
   const attendance = useMemo(() => attendanceData || [], [attendanceData]);
   const stats = statsData || {

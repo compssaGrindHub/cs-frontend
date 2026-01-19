@@ -1,14 +1,21 @@
 import axios from "axios";
 
-// Use NGROK_BASE from env.local, fallback to NEXT_PUBLIC_API_URL or localhost
-// NGROK_BASE should include the full URL with /api prefix
-const NGROK_BASE = "http://localhost:3001";
-//  process.env.NEXT_PUBLIC_NGROK_BASE;
-const FALLBACK_API_URL = "http://localhost:3001";
-//  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+// API URL configuration based on environment
+// In development (local), use localhost
+// In production, use the production API URL from environment variable
+const getApiUrl = () => {
+  // Check if we're in development mode (set NODE_ENV=development locally)
+  if (process.env.NODE_ENV === "development") {
+    return "http://localhost:3001/api";
+  }
 
-// Construct API URL: if NGROK_BASE exists, append /api, otherwise use fallback
-const API_URL = NGROK_BASE ? `${NGROK_BASE}/api` : FALLBACK_API_URL;
+  // Production: use environment variable or fallback to production URL
+  return (
+    process.env.NEXT_PUBLIC_API_URL || "https://cs-hub-backend.onrender.com/api"
+  );
+};
+
+const API_URL = getApiUrl();
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -37,12 +44,12 @@ apiClient.interceptors.request.use(
         {
           hasToken: !!token,
           baseURL: config.baseURL,
-        }
+        },
       );
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 apiClient.interceptors.response.use(
@@ -59,7 +66,7 @@ apiClient.interceptors.response.use(
         {
           status: response.status,
           success: response.data?.success,
-        }
+        },
       );
     }
     return response;
@@ -90,7 +97,7 @@ apiClient.interceptors.response.use(
         console.error(
           `[API Error] ${method} ${url} - ${status}: ${
             errorMessage || "Unknown error"
-          }`
+          }`,
         );
       }
     }
@@ -144,7 +151,7 @@ apiClient.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default apiClient;

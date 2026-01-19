@@ -1,93 +1,106 @@
-'use client';
+"use client";
 
-import { use, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/stores/authStore';
-import { getProblemBySlug } from '@/lib/api/problems';
-import { createSubmission } from '@/lib/api/submissions';
-import { getCurrentUser } from '@/lib/api';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { use, useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/lib/stores/authStore";
+import { getProblemBySlug } from "@/lib/api/problems";
+import { createSubmission } from "@/lib/api/submissions";
+import { getCurrentUser } from "@/lib/api";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Loading } from '@/components/common/Loading';
-import { EmptyState } from '@/components/common/EmptyState';
-import { CheckCircle2, XCircle, Play, ArrowLeft } from 'lucide-react';
-import { toast } from 'sonner';
-import Link from 'next/link';
+} from "@/components/ui/select";
+import { Loading } from "@/components/common/Loading";
+import { EmptyState } from "@/components/common/EmptyState";
+import { CheckCircle2, XCircle, Play, ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
+import Link from "next/link";
 
-type SubmissionStatus = 'ACCEPTED' | 'WRONG_ANSWER' | 'TIME_LIMIT_EXCEEDED' | 'RUNTIME_ERROR' | 'COMPILATION_ERROR';
+type SubmissionStatus =
+  | "ACCEPTED"
+  | "WRONG_ANSWER"
+  | "TIME_LIMIT_EXCEEDED"
+  | "RUNTIME_ERROR"
+  | "COMPILATION_ERROR";
 
 const languages = [
-  { value: 'javascript', label: 'JavaScript' },
-  { value: 'typescript', label: 'TypeScript' },
-  { value: 'python', label: 'Python' },
-  { value: 'java', label: 'Java' },
-  { value: 'cpp', label: 'C++' },
-  { value: 'c', label: 'C' },
-  { value: 'csharp', label: 'C#' },
-  { value: 'go', label: 'Go' },
-  { value: 'rust', label: 'Rust' },
-  { value: 'kotlin', label: 'Kotlin' },
+  { value: "javascript", label: "JavaScript" },
+  { value: "typescript", label: "TypeScript" },
+  { value: "python", label: "Python" },
+  { value: "java", label: "Java" },
+  { value: "cpp", label: "C++" },
+  { value: "c", label: "C" },
+  { value: "csharp", label: "C#" },
+  { value: "go", label: "Go" },
+  { value: "rust", label: "Rust" },
+  { value: "kotlin", label: "Kotlin" },
 ];
 
 const statusOptions = [
-  { value: 'ACCEPTED', label: 'Accepted' },
-  { value: 'WRONG_ANSWER', label: 'Wrong Answer' },
-  { value: 'TIME_LIMIT_EXCEEDED', label: 'Time Limit Exceeded' },
-  { value: 'RUNTIME_ERROR', label: 'Runtime Error' },
-  { value: 'COMPILATION_ERROR', label: 'Compilation Error' },
+  { value: "ACCEPTED", label: "Accepted" },
+  { value: "WRONG_ANSWER", label: "Wrong Answer" },
+  { value: "TIME_LIMIT_EXCEEDED", label: "Time Limit Exceeded" },
+  { value: "RUNTIME_ERROR", label: "Runtime Error" },
+  { value: "COMPILATION_ERROR", label: "Compilation Error" },
 ];
 
 function formatCode(code: string): string {
-  const lines = code.split('\n');
+  const lines = code.split("\n");
   const indentSize = 2;
-  let formatted = '';
+  let formatted = "";
   let indentLevel = 0;
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    
+
     if (!line) {
-      formatted += '\n';
+      formatted += "\n";
       continue;
     }
-    
-    if (line.includes('}') || line.includes(')') || line.includes(']')) {
+
+    if (line.includes("}") || line.includes(")") || line.includes("]")) {
       indentLevel = Math.max(0, indentLevel - 1);
     }
-    
-    formatted += ' '.repeat(indentLevel * indentSize) + line + '\n';
-    
-    if (line.includes('{') || (line.includes('(') && !line.includes(')')) || (line.includes('[') && !line.includes(']'))) {
+
+    formatted += " ".repeat(indentLevel * indentSize) + line + "\n";
+
+    if (
+      line.includes("{") ||
+      (line.includes("(") && !line.includes(")")) ||
+      (line.includes("[") && !line.includes("]"))
+    ) {
       indentLevel++;
     }
   }
-  
+
   return formatted.trim();
 }
 
-export default function SubmitSolutionPage({ params }: { params: Promise<{ slug: string }> }) {
+export default function SubmitSolutionPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
   const { user } = useAuthStore();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { slug } = use(params);
-  
-  const [language, setLanguage] = useState('javascript');
-  const [code, setCode] = useState('');
-  const [status, setStatus] = useState<SubmissionStatus>('ACCEPTED');
+
+  const [language, setLanguage] = useState("javascript");
+  const [code, setCode] = useState("");
+  const [status, setStatus] = useState<SubmissionStatus>("ACCEPTED");
 
   const { data: userData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: ["currentUser"],
     queryFn: () => getCurrentUser(),
     enabled: !!user,
   });
@@ -95,8 +108,12 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
   const currentUserData = userData?.data || user;
   const hasGithubConnected = !!currentUserData?.githubUsername;
 
-  const { data: problemData, isLoading: problemLoading, error: problemError } = useQuery({
-    queryKey: ['problem', slug],
+  const {
+    data: problemData,
+    isLoading: problemLoading,
+    error: problemError,
+  } = useQuery({
+    queryKey: ["problem", slug],
     queryFn: async () => {
       const result = await getProblemBySlug(slug);
       return result;
@@ -105,64 +122,95 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
 
   const problem = problemData?.data;
 
+  // Show toast error when problem fails to load
+  useEffect(() => {
+    if (problemError) {
+      toast.error("Failed to load problem", {
+        description: "The problem could not be found",
+      });
+    }
+  }, [problemError]);
+
   const submitMutation = useMutation({
-    mutationFn: async (data: { problemId: string; status: SubmissionStatus; language: string; code: string }) => {
+    mutationFn: async (data: {
+      problemId: string;
+      status: SubmissionStatus;
+      language: string;
+      code: string;
+    }) => {
       const result = await createSubmission(data);
       return result;
     },
     onSuccess: async (response) => {
       const submission = response.data;
-      toast.success('Solution submitted successfully!');
-      
+      toast.success("Solution submitted successfully!");
+
       // If accepted and GitHub is connected, push to GitHub
-      if (submission && submission.status === 'ACCEPTED' && hasGithubConnected && !submission.githubUrl) {
+      if (
+        submission &&
+        submission.status === "ACCEPTED" &&
+        hasGithubConnected &&
+        !submission.githubUrl
+      ) {
         try {
-          const { pushSubmissionToGitHub } = await import('@/lib/api/submissions');
+          const { pushSubmissionToGitHub } =
+            await import("@/lib/api/submissions");
           const pushResult = await pushSubmissionToGitHub(submission.id);
           if (pushResult.data?.commitUrl) {
-            toast.success('Solution pushed to GitHub!', {
-              description: 'View it on GitHub',
+            toast.success("Solution pushed to GitHub!", {
+              description: "View it on GitHub",
               action: {
-                label: 'Open',
-                onClick: () => window.open(pushResult.data?.commitUrl || '', '_blank'),
+                label: "Open",
+                onClick: () =>
+                  window.open(pushResult.data?.commitUrl || "", "_blank"),
               },
             });
           }
         } catch (error: any) {
-          console.error('GitHub push failed:', error);
-          toast.error(error.response?.data?.error || 'Failed to push to GitHub', {
-            description: 'Your submission was saved, but GitHub push failed',
-          });
+          toast.error(
+            error.response?.data?.error || "Failed to push to GitHub",
+            {
+              description: "Your submission was saved, but GitHub push failed",
+            },
+          );
         }
       }
-      
+
       // Invalidate all relevant queries
-      queryClient.invalidateQueries({ queryKey: ['problem', slug] });
-      queryClient.invalidateQueries({ queryKey: ['problems'] }); // Invalidate problems list to update solved status
-      queryClient.invalidateQueries({ queryKey: ['problemSubmissions'] });
-      queryClient.invalidateQueries({ queryKey: ['userSubmissions', user?.id] }); // Invalidate all user submissions
-      queryClient.invalidateQueries({ queryKey: ['userSubmissions', user?.id, problem?.id] }); // Invalidate specific problem submissions
-      queryClient.invalidateQueries({ queryKey: ['userStats'] });
-      queryClient.invalidateQueries({ queryKey: ['problemStats', problem?.id] });
-      
+      queryClient.invalidateQueries({ queryKey: ["problem", slug] });
+      queryClient.invalidateQueries({ queryKey: ["problems"] }); // Invalidate problems list to update solved status
+      queryClient.invalidateQueries({ queryKey: ["problemSubmissions"] });
+      queryClient.invalidateQueries({
+        queryKey: ["userSubmissions", user?.id],
+      }); // Invalidate all user submissions
+      queryClient.invalidateQueries({
+        queryKey: ["userSubmissions", user?.id, problem?.id],
+      }); // Invalidate specific problem submissions
+      queryClient.invalidateQueries({ queryKey: ["userStats"] });
+      queryClient.invalidateQueries({
+        queryKey: ["problemStats", problem?.id],
+      });
+
       // Refetch submissions immediately
-      await queryClient.refetchQueries({ queryKey: ['userSubmissions', user?.id, problem?.id] });
-      
+      await queryClient.refetchQueries({
+        queryKey: ["userSubmissions", user?.id, problem?.id],
+      });
+
       router.push(`/problems/${slug}`);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || 'Failed to submit solution');
+      toast.error(error.response?.data?.error || "Failed to submit solution");
     },
   });
 
   const handleSubmit = () => {
     if (!code.trim()) {
-      toast.error('Please enter your solution code');
+      toast.error("Please enter your solution code");
       return;
     }
 
     if (!problem) {
-      toast.error('Problem not found');
+      toast.error("Problem not found");
       return;
     }
 
@@ -176,11 +224,11 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
 
   const handleFormatCode = () => {
     if (!code.trim()) {
-      toast.info('No code to format');
+      toast.info("No code to format");
       return;
     }
     setCode(formatCode(code));
-    toast.success('Code formatted');
+    toast.success("Code formatted");
   };
 
   if (problemLoading) {
@@ -229,9 +277,14 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
         </div>
 
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground mb-2">Submit Solution</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-2">
+            Submit Solution
+          </h1>
           <p className="text-muted-foreground">
-            Submit your solution for: <span className="font-semibold text-foreground">{problem.title}</span>
+            Submit your solution for:{" "}
+            <span className="font-semibold text-foreground">
+              {problem.title}
+            </span>
           </p>
         </div>
 
@@ -243,7 +296,9 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-foreground mb-2 block text-sm">Language</Label>
+                      <Label className="text-foreground mb-2 block text-sm">
+                        Language
+                      </Label>
                       <Select value={language} onValueChange={setLanguage}>
                         <SelectTrigger className="bg-muted border-border text-foreground">
                           <SelectValue placeholder="Select language" />
@@ -259,8 +314,15 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
                     </div>
 
                     <div>
-                      <Label className="text-foreground mb-2 block text-sm">Status</Label>
-                      <Select value={status} onValueChange={(value) => setStatus(value as SubmissionStatus)}>
+                      <Label className="text-foreground mb-2 block text-sm">
+                        Status
+                      </Label>
+                      <Select
+                        value={status}
+                        onValueChange={(value) =>
+                          setStatus(value as SubmissionStatus)
+                        }
+                      >
                         <SelectTrigger className="bg-muted border-border text-foreground">
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
@@ -268,7 +330,7 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
                           {statusOptions.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
                               <div className="flex items-center gap-2">
-                                {option.value === 'ACCEPTED' ? (
+                                {option.value === "ACCEPTED" ? (
                                   <CheckCircle2 className="w-4 h-4 text-green-500" />
                                 ) : (
                                   <XCircle className="w-4 h-4 text-red-500" />
@@ -284,7 +346,9 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
 
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <Label className="text-foreground block text-sm">Code</Label>
+                      <Label className="text-foreground block text-sm">
+                        Code
+                      </Label>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -301,7 +365,8 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
                       placeholder="Paste your solution code here..."
                     />
                     <p className="text-xs text-muted-foreground mt-2">
-                      Paste your solution code. Use "Format Code" to automatically format it.
+                      Paste your solution code. Use "Format Code" to
+                      automatically format it.
                     </p>
                   </div>
 
@@ -312,10 +377,15 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
                       className="bg-primary hover:bg-primary/90 text-primary-foreground"
                     >
                       <Play className="w-4 h-4 mr-2" />
-                      {submitMutation.isPending ? 'Submitting...' : 'Submit Solution'}
+                      {submitMutation.isPending
+                        ? "Submitting..."
+                        : "Submit Solution"}
                     </Button>
                     <Link href={`/problems/${slug}`}>
-                      <Button variant="outline" className="border-border text-foreground hover:bg-foreground/5">
+                      <Button
+                        variant="outline"
+                        className="border-border text-foreground hover:bg-foreground/5"
+                      >
                         Cancel
                       </Button>
                     </Link>
@@ -329,21 +399,31 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
           <div className="space-y-6">
             <Card className="bg-card border-border">
               <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Problem Info</h3>
+                <h3 className="text-lg font-semibold text-foreground mb-4">
+                  Problem Info
+                </h3>
                 <div className="space-y-3">
                   <div>
                     <span className="text-sm text-muted-foreground">Title</span>
-                    <p className="text-sm font-medium text-foreground">{problem.title}</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {problem.title}
+                    </p>
                   </div>
                   <div>
-                    <span className="text-sm text-muted-foreground">Difficulty</span>
+                    <span className="text-sm text-muted-foreground">
+                      Difficulty
+                    </span>
                     <Badge variant="outline" className="mt-1">
                       {problem.difficulty}
                     </Badge>
                   </div>
                   <div>
-                    <span className="text-sm text-muted-foreground">Platform</span>
-                    <p className="text-sm font-medium text-foreground">{problem.platform}</p>
+                    <span className="text-sm text-muted-foreground">
+                      Platform
+                    </span>
+                    <p className="text-sm font-medium text-foreground">
+                      {problem.platform}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -351,7 +431,9 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
 
             <Card className="bg-card border-border">
               <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Tips</h3>
+                <h3 className="text-lg font-semibold text-foreground mb-4">
+                  Tips
+                </h3>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li>• Paste your complete solution code</li>
                   <li>• Use "Format Code" to clean up indentation</li>
@@ -359,7 +441,9 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
                   <li>• Mark the submission status accurately</li>
                   <li>• Accepted solutions will update your stats</li>
                   {hasGithubConnected && (
-                    <li className="text-green-500">• Accepted solutions will automatically push to GitHub</li>
+                    <li className="text-green-500">
+                      • Accepted solutions will automatically push to GitHub
+                    </li>
                   )}
                 </ul>
               </CardContent>
@@ -370,4 +454,3 @@ export default function SubmitSolutionPage({ params }: { params: Promise<{ slug:
     </div>
   );
 }
-
