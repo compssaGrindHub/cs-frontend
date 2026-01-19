@@ -99,6 +99,7 @@ export default function Header() {
     refetchInterval: 30000,
   });
 
+  console.log("[Header] Notifications data:", notificationsData);
   const notifications = notificationsData?.data || [];
   const count = unreadCount || 0;
 
