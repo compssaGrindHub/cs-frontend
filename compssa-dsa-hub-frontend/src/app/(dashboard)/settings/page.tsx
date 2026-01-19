@@ -325,6 +325,21 @@ export default function SettingsPage() {
       return;
     }
 
+    if (!/[A-Z]/.test(newPassword)) {
+      toast.error("Password must contain at least one uppercase letter");
+      return;
+    }
+
+    if (!/[a-z]/.test(newPassword)) {
+      toast.error("Password must contain at least one lowercase letter");
+      return;
+    }
+
+    if (!/[0-9]/.test(newPassword)) {
+      toast.error("Password must contain at least one number");
+      return;
+    }
+
     changePasswordMutation.mutate({
       currentPassword,
       newPassword,
@@ -657,7 +672,10 @@ export default function SettingsPage() {
                       <Label className="text-foreground mb-1.5 md:mb-2 block text-xs md:text-sm">
                         Password
                       </Label>
-                      <Button className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs md:text-sm h-8 md:h-10">
+                      <Button
+                        onClick={() => setShowPasswordDialog(true)}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs md:text-sm h-8 md:h-10"
+                      >
                         Change Password
                       </Button>
                     </div>
