@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useState, useMemo, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +15,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -23,67 +23,91 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Search, Users, TrendingUp, Award, Trash2, ExternalLink, Calendar } from 'lucide-react';
-import { format } from 'date-fns';
-import { getUsers, deleteUser, User } from '@/lib/api';
-import { Loading } from '@/components/common/Loading';
+} from "@/components/ui/table";
+import {
+  Search,
+  Users,
+  TrendingUp,
+  Award,
+  Trash2,
+  ExternalLink,
+  Calendar,
+} from "lucide-react";
+import { format } from "date-fns";
+import { getUsers, deleteUser, User } from "@/lib/api";
+import { Loading } from "@/components/common/Loading";
+import { toast } from "sonner";
 
 const roleColors = {
-  USER: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
-  ADMIN: 'bg-red-500/10 text-red-500 border-red-500/20',
-  INSTRUCTOR: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+  USER: "bg-gray-500/10 text-gray-500 border-gray-500/20",
+  ADMIN: "bg-red-500/10 text-red-500 border-red-500/20",
+  INSTRUCTOR: "bg-blue-500/10 text-blue-500 border-blue-500/20",
 };
 
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'ALL' | 'USER' | 'ADMIN' | 'INSTRUCTOR'>('ALL');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<
+    "ALL" | "USER" | "ADMIN" | "INSTRUCTOR"
+  >("ALL");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  const { data: usersData, isLoading: usersLoading } = useQuery({
-    queryKey: ['users'],
+  const {
+    data: usersData,
+    isLoading: usersLoading,
+    error: usersError,
+  } = useQuery({
+    queryKey: ["users"],
     queryFn: () => getUsers({ limit: 20, search: searchTerm || undefined }),
   });
+
+  // Show toast error when users fail to load
+  useEffect(() => {
+    if (usersError) {
+      toast.error("Failed to load users", {
+        description: "Please try refreshing the page",
+      });
+    }
+  }, [usersError]);
 
   const users = useMemo(() => usersData?.data || [], [usersData?.data]);
   const meta = usersData?.meta;
 
   const filteredUsers = useMemo(() => {
-    if (roleFilter === 'ALL') return users;
+    if (roleFilter === "ALL") return users;
     return users.filter((user) => user.role === roleFilter);
   }, [users, roleFilter]);
 
   const stats = [
     {
-      label: 'Total Users',
+      label: "Total Users",
       value: meta?.total || 0,
-      color: 'text-blue-500',
+      color: "text-blue-500",
       icon: Users,
-      description: 'Registered members',
+      description: "Registered members",
     },
     {
-      label: 'Active This Month',
+      label: "Active This Month",
       value: users.filter((u) => u.currentStreak > 0).length,
-      color: 'text-green-500',
+      color: "text-green-500",
       icon: TrendingUp,
-      description: 'Users with activity',
+      description: "Users with activity",
     },
     {
-      label: 'Instructors',
-      value: users.filter((u) => u.role === 'INSTRUCTOR').length,
-      color: 'text-purple-500',
+      label: "Instructors",
+      value: users.filter((u) => u.role === "INSTRUCTOR").length,
+      color: "text-purple-500",
       icon: Award,
-      description: 'Teaching staff',
+      description: "Teaching staff",
     },
   ];
 
   const deleteUserMutation = useMutation({
     mutationFn: deleteUser,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      queryClient.refetchQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.refetchQueries({ queryKey: ["users"] });
       setIsDeleteDialogOpen(false);
       setSelectedUser(null);
     },
@@ -112,8 +136,12 @@ export default function AdminUsersPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">User Management</h1>
-          <p className="text-muted-foreground mt-1">View and manage platform users</p>
+          <h1 className="text-3xl font-bold text-foreground">
+            User Management
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            View and manage platform users
+          </p>
         </div>
       </div>
 
@@ -129,9 +157,15 @@ export default function AdminUsersPage() {
                     <Icon className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
-                    <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {stat.label}
+                    </p>
+                    <p className={`text-2xl font-bold ${stat.color}`}>
+                      {stat.value}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {stat.description}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -157,14 +191,14 @@ export default function AdminUsersPage() {
               />
             </div>
             <div className="flex gap-2">
-              {(['ALL', 'USER', 'ADMIN', 'INSTRUCTOR'] as const).map((role) => (
+              {(["ALL", "USER", "ADMIN", "INSTRUCTOR"] as const).map((role) => (
                 <Button
                   key={role}
-                  variant={roleFilter === role ? 'default' : 'outline'}
+                  variant={roleFilter === role ? "default" : "outline"}
                   size="sm"
                   onClick={() => setRoleFilter(role)}
                 >
-                  {role === 'ALL' ? 'All Roles' : role}
+                  {role === "ALL" ? "All Roles" : role}
                 </Button>
               ))}
             </div>
@@ -177,16 +211,25 @@ export default function AdminUsersPage() {
                 <TableRow className="hover:bg-muted/50">
                   <TableHead className="text-muted-foreground">User</TableHead>
                   <TableHead className="text-muted-foreground">Role</TableHead>
-                  <TableHead className="text-muted-foreground">Rating</TableHead>
+                  <TableHead className="text-muted-foreground">
+                    Rating
+                  </TableHead>
                   <TableHead className="text-muted-foreground">Stats</TableHead>
-                  <TableHead className="text-muted-foreground">Joined</TableHead>
-                  <TableHead className="text-right text-muted-foreground">Actions</TableHead>
+                  <TableHead className="text-muted-foreground">
+                    Joined
+                  </TableHead>
+                  <TableHead className="text-right text-muted-foreground">
+                    Actions
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell
+                      colSpan={6}
+                      className="text-center py-8 text-muted-foreground"
+                    >
                       No users found
                     </TableCell>
                   </TableRow>
@@ -205,36 +248,58 @@ export default function AdminUsersPage() {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="font-medium text-foreground">{user.username}</p>
-                            <p className="text-sm text-muted-foreground">{user.email}</p>
+                            <p className="font-medium text-foreground">
+                              {user.username}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {user.email}
+                            </p>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={roleColors[user.role]}>{user.role}</Badge>
+                        <Badge className={roleColors[user.role]}>
+                          {user.role}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-semibold text-yellow-500">{user.totalRating}</p>
+                          <p className="font-semibold text-yellow-500">
+                            {user.totalRating}
+                          </p>
                           {user.globalRank && user.globalRank > 0 && (
-                            <p className="text-xs text-muted-foreground">Rank #{user.globalRank}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Rank #{user.globalRank}
+                            </p>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1 text-sm">
                           <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground">Problems:</span>
-                            <span className="font-medium text-foreground">{user.currentStreak || 0}</span>
+                            <span className="text-muted-foreground">
+                              Problems:
+                            </span>
+                            <span className="font-medium text-foreground">
+                              {user.currentStreak || 0}
+                            </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground">Contests:</span>
-                            <span className="font-medium text-foreground">{user.longestStreak || 0}</span>
+                            <span className="text-muted-foreground">
+                              Contests:
+                            </span>
+                            <span className="font-medium text-foreground">
+                              {user.longestStreak || 0}
+                            </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground">Streak:</span>
+                            <span className="text-muted-foreground">
+                              Streak:
+                            </span>
                             <span className="font-medium text-orange-500">
-                              {user.currentStreak > 0 ? `🔥 ${user.currentStreak}` : '0'}
+                              {user.currentStreak > 0
+                                ? `🔥 ${user.currentStreak}`
+                                : "0"}
                             </span>
                           </div>
                         </div>
@@ -242,13 +307,17 @@ export default function AdminUsersPage() {
                       <TableCell>
                         <div className="flex items-center gap-1 text-sm text-foreground">
                           <Calendar className="w-3 h-3 text-muted-foreground" />
-                          {format(new Date(user.createdAt), 'MMM dd, yyyy')}
+                          {format(new Date(user.createdAt), "MMM dd, yyyy")}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Link href={`/profile?userId=${user.id}`}>
-                            <Button variant="ghost" size="sm" className="h-8 px-2 gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 gap-1"
+                            >
                               <ExternalLink className="w-4 h-4" />
                               View
                             </Button>
@@ -258,7 +327,7 @@ export default function AdminUsersPage() {
                             size="sm"
                             onClick={() => openDeleteDialog(user)}
                             className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                            disabled={user.role === 'ADMIN'}
+                            disabled={user.role === "ADMIN"}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -279,16 +348,26 @@ export default function AdminUsersPage() {
           <DialogHeader>
             <DialogTitle className="text-foreground">Delete User</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Are you sure you want to delete user &quot;{selectedUser?.username}&quot;? This will permanently remove all their
-              data including submissions, progress, and achievements. This action cannot be undone.
+              Are you sure you want to delete user &quot;
+              {selectedUser?.username}&quot;? This will permanently remove all
+              their data including submissions, progress, and achievements. This
+              action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={deleteUserMutation.isPending}>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={deleteUserMutation.isPending}
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleteUserMutation.isPending}>
-              {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteUserMutation.isPending}
+            >
+              {deleteUserMutation.isPending ? "Deleting..." : "Delete User"}
             </Button>
           </DialogFooter>
         </DialogContent>

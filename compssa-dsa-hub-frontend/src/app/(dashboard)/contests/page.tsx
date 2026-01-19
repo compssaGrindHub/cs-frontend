@@ -806,8 +806,11 @@ function ContestOverlay({
         // Cache the results
         standingsCache.set(contest.id, data);
       } catch (err) {
-        setStandingsError("Failed to load standings");
-        console.error("Error fetching standings:", err);
+        const errorMessage = "Failed to load standings";
+        setStandingsError(errorMessage);
+        toast.error(errorMessage, {
+          description: "Please try again later",
+        });
       } finally {
         setStandingsLoading(false);
       }

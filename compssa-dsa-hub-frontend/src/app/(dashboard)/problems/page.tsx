@@ -25,6 +25,7 @@ import { Loading } from "@/components/common/Loading";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Pagination } from "@/components/common/Pagination";
 import Link from "next/link";
+import { toast } from "sonner";
 
 const difficultyColors = {
   EASY: "text-green-500 bg-green-500/10 border-green-500/30",
@@ -118,10 +119,23 @@ export default function ProblemsPage() {
     sortBy,
   ]);
 
-  const { data: problemsData, isLoading } = useQuery({
+  const {
+    data: problemsData,
+    isLoading,
+    error: problemsError,
+  } = useQuery({
     queryKey: ["problems", apiParams],
     queryFn: () => getProblems(apiParams),
   });
+
+  // Show toast error when problems fail to load
+  useEffect(() => {
+    if (problemsError) {
+      toast.error("Failed to load problems", {
+        description: "Please try refreshing the page",
+      });
+    }
+  }, [problemsError]);
 
   const problems = Array.isArray(problemsData?.data) ? problemsData.data : [];
   const meta = problemsData?.meta || null;

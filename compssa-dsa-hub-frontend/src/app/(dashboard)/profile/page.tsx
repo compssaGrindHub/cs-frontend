@@ -29,6 +29,7 @@ import {
 import { getUserAchievements } from "@/lib/api/achievements";
 import { format, formatDistanceToNow } from "date-fns";
 import { User } from "@/lib/types/user";
+import { toast } from "sonner";
 
 // ============================================================================
 // HELPERS
@@ -233,15 +234,17 @@ export default function ProfilePage() {
     refetchOnWindowFocus: false,
   });
 
-  // Log errors in development
+  // Show toast errors for API failures
   useEffect(() => {
-    if (
-      typeof window !== "undefined" &&
-      process.env.NODE_ENV === "development"
-    ) {
-      if (userError) console.error("[Profile] Error fetching user:", userError);
-      if (statsError)
-        console.error("[Profile] Error fetching stats:", statsError);
+    if (userError) {
+      toast.error("Failed to load profile", {
+        description: "Please refresh the page or try again later",
+      });
+    }
+    if (statsError) {
+      toast.error("Failed to load statistics", {
+        description: "Some stats may not be available",
+      });
     }
   }, [userError, statsError]);
 
@@ -336,17 +339,6 @@ export default function ProfilePage() {
   // Show error or no user state - only if we truly have no user
   // This should rarely happen if auth is working correctly
   if (!user) {
-    if (
-      typeof window !== "undefined" &&
-      process.env.NODE_ENV === "development"
-    ) {
-      console.error("[Profile] No user found:", {
-        currentUser,
-        userData: userData?.data,
-        isAuthenticated,
-        userError,
-      });
-    }
     return (
       <div className="min-h-screen bg-background p-6">
         <EmptyState

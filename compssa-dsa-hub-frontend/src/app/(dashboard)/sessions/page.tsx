@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Pagination } from "@/components/common/Pagination";
 import { Loading } from "@/components/common/Loading";
+import { toast } from "sonner";
 
 const sessionTypeColors: Record<SessionType, string> = {
   LECTURE: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200",
@@ -125,10 +126,23 @@ export default function SessionsPage() {
     upcoming: upcomingOnly || undefined,
   };
 
-  const { data: sessionsData, isLoading } = useQuery({
+  const {
+    data: sessionsData,
+    isLoading,
+    error: sessionsError,
+  } = useQuery({
     queryKey: ["sessions", apiParams],
     queryFn: () => getSessions(apiParams),
   });
+
+  // Show toast error when sessions fail to load
+  useEffect(() => {
+    if (sessionsError) {
+      toast.error("Failed to load sessions", {
+        description: "Please try refreshing the page",
+      });
+    }
+  }, [sessionsError]);
 
   const sessions = sessionsData?.data || [];
   const meta = sessionsData?.meta;

@@ -26,6 +26,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loading } from "@/components/common/Loading";
 import { EmptyState } from "@/components/common/EmptyState";
 import { getGlobalLeaderboard } from "@/lib/api/leaderboard";
+import { toast } from "sonner";
+import { useEffect } from "react";
 
 const getRankIcon = (rank: number) => {
   if (rank === 1) return <Trophy className="w-5 h-5 text-yellow-500" />;
@@ -82,17 +84,14 @@ export default function LeaderboardPage() {
     refetchOnWindowFocus: false,
   });
 
-  // Log errors in development
-  if (
-    typeof window !== "undefined" &&
-    process.env.NODE_ENV === "development" &&
-    leaderboardError
-  ) {
-    console.error(
-      "[Leaderboard] Error fetching leaderboard:",
-      leaderboardError,
-    );
-  }
+  // Show toast error when leaderboard fails to load
+  useEffect(() => {
+    if (leaderboardError) {
+      toast.error("Failed to load leaderboard", {
+        description: "Please try refreshing the page",
+      });
+    }
+  }, [leaderboardError]);
 
   // Extract leaderboard data - API returns { success: true, data: LeaderboardEntry[], meta: {...} }
   // So data is directly an array, not nested
