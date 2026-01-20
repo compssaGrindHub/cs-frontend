@@ -516,8 +516,61 @@ export default function SettingsPage() {
                     </Button>
                   </CardContent>
                 </Card>
+              </div>
+            )}
 
-                {/* Platform Integrations */}
+            {/* Account Tab */}
+            {activeTab === "account" && (
+              <Card className="bg-card border-border">
+                <CardContent className="p-4 md:p-6">
+                  <h2 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">
+                    Account Settings
+                  </h2>
+                  <div className="space-y-3 md:space-y-4">
+                    <div>
+                      <Label className="text-foreground mb-1.5 md:mb-2 block text-xs md:text-sm">
+                        Email Address
+                      </Label>
+                      <Input
+                        type="email"
+                        value="alexander@example.com"
+                        disabled
+                        className="bg-muted border-border text-muted-foreground text-sm h-9 md:h-10"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-foreground mb-1.5 md:mb-2 block text-xs md:text-sm">
+                        Password
+                      </Label>
+                      <Button
+                        onClick={() => setShowPasswordDialog(true)}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs md:text-sm h-8 md:h-10"
+                      >
+                        Change Password
+                      </Button>
+                    </div>
+                    <div>
+                      <Label className="text-foreground mb-1.5 md:mb-2 block text-xs md:text-sm">
+                        Two-Factor Authentication
+                      </Label>
+                      <p className="text-xs md:text-sm text-muted-foreground mb-2">
+                        Secure your account with 2FA
+                      </p>
+                      <Button
+                        variant="outline"
+                        className="text-xs md:text-sm h-8 md:h-10"
+                      >
+                        Enable 2FA
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Integrations Tab */}
+            {activeTab === "integrations" && (
+              <div className="space-y-4 md:space-y-6">
                 <Card className="bg-card border-border">
                   <CardContent className="p-4 md:p-6">
                     <h2 className="text-base md:text-lg font-semibold text-foreground mb-2 md:mb-4">
@@ -641,141 +694,6 @@ export default function SettingsPage() {
                           className="text-xs h-8 md:h-9 w-full sm:w-auto"
                         >
                           {githubUsername ? "Reconnect" : "Connect"}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            {/* Account Tab */}
-            {activeTab === "account" && (
-              <Card className="bg-card border-border">
-                <CardContent className="p-4 md:p-6">
-                  <h2 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">
-                    Account Settings
-                  </h2>
-                  <div className="space-y-3 md:space-y-4">
-                    <div>
-                      <Label className="text-foreground mb-1.5 md:mb-2 block text-xs md:text-sm">
-                        Email Address
-                      </Label>
-                      <Input
-                        type="email"
-                        value="alexander@example.com"
-                        disabled
-                        className="bg-muted border-border text-muted-foreground text-sm h-9 md:h-10"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-foreground mb-1.5 md:mb-2 block text-xs md:text-sm">
-                        Password
-                      </Label>
-                      <Button
-                        onClick={() => setShowPasswordDialog(true)}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs md:text-sm h-8 md:h-10"
-                      >
-                        Change Password
-                      </Button>
-                    </div>
-                    <div>
-                      <Label className="text-foreground mb-1.5 md:mb-2 block text-xs md:text-sm">
-                        Two-Factor Authentication
-                      </Label>
-                      <p className="text-xs md:text-sm text-muted-foreground mb-2">
-                        Secure your account with 2FA
-                      </p>
-                      <Button
-                        variant="outline"
-                        className="text-xs md:text-sm h-8 md:h-10"
-                      >
-                        Enable 2FA
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Integrations Tab */}
-            {activeTab === "integrations" && (
-              <div className="space-y-4 md:space-y-6">
-                <Card className="bg-card border-border">
-                  <CardContent className="p-4 md:p-6">
-                    <h2 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">
-                      Connected Platforms
-                    </h2>
-                    <p className="text-sm text-muted-foreground mb-6">
-                      Your connected coding platforms and services.
-                    </p>
-
-                    <div className="space-y-4">
-                      {/* LeetCode */}
-                      <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded bg-yellow-500/20 flex items-center justify-center text-yellow-500 font-bold">
-                            L
-                          </div>
-                          <div>
-                            <p className="text-foreground font-medium">
-                              LeetCode
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Last synced: 2 hours ago
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-1.5 md:gap-2 text-xs md:text-sm h-8 md:h-10 w-full sm:w-auto"
-                        >
-                          <Unlink className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                          <span className="hidden sm:inline">Disconnect</span>
-                        </Button>
-                      </div>
-
-                      {/* Codeforces */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 md:p-4 bg-muted rounded-lg border border-border">
-                        <div className="flex items-center gap-2 md:gap-3">
-                          <div className="w-7 h-7 md:w-8 md:h-8 rounded bg-blue-500/20 flex items-center justify-center text-blue-500 font-bold text-sm md:text-base flex-shrink-0">
-                            CF
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-foreground font-medium text-sm md:text-base">
-                              Codeforces
-                            </p>
-                            <p className="text-[10px] md:text-xs text-muted-foreground">
-                              Not connected
-                            </p>
-                          </div>
-                        </div>
-                        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs md:text-sm h-8 md:h-10 w-full sm:w-auto">
-                          Connect
-                        </Button>
-                      </div>
-
-                      {/* GitHub */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 md:p-4 bg-muted rounded-lg border border-border">
-                        <div className="flex items-center gap-2 md:gap-3">
-                          <div className="w-7 h-7 md:w-8 md:h-8 rounded bg-gray-600/20 flex items-center justify-center text-gray-300 font-bold text-sm md:text-base flex-shrink-0">
-                            GH
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-foreground font-medium text-sm md:text-base">
-                              GitHub
-                            </p>
-                            <p className="text-[10px] md:text-xs text-muted-foreground">
-                              Last synced: 5 minutes ago
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-1.5 md:gap-2 text-xs md:text-sm h-8 md:h-10 w-full sm:w-auto"
-                        >
-                          <Unlink className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                          <span className="hidden sm:inline">Disconnect</span>
                         </Button>
                       </div>
                     </div>
