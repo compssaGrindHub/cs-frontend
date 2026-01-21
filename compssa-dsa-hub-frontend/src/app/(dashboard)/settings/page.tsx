@@ -17,7 +17,6 @@ import {
   Bell,
   Palette,
   Upload,
-  Unlink,
   Moon,
   Sun,
   Monitor,
@@ -533,10 +532,25 @@ export default function SettingsPage() {
                       </Label>
                       <Input
                         type="email"
-                        value="alexander@example.com"
+                        value={user.email || ""}
                         disabled
                         className="bg-muted border-border text-muted-foreground text-sm h-9 md:h-10"
                       />
+                      <div className="mt-2">
+                        <Label className="text-foreground mb-1.5 md:mb-2 block text-xs md:text-sm">
+                          Change Email
+                        </Label>
+                        <Input
+                          type="email"
+                          value={user.email || ""}
+                          disabled
+                          className="bg-muted border-border text-muted-foreground text-sm h-9 md:h-10"
+                        />
+                        <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
+                          To change your email, please contact the admins or
+                          heads.
+                        </p>
+                      </div>
                     </div>
                     <div>
                       <Label className="text-foreground mb-1.5 md:mb-2 block text-xs md:text-sm">
