@@ -91,11 +91,13 @@ apiClient.interceptors.response.use(
       const errorMessage = error.response?.data?.error || error.message;
 
       if (status && url) {
-        console.error(
-          `[API Error] ${method} ${url} - ${status}: ${
-            errorMessage || "Unknown error"
-          }`,
-        );
+        if (typeof window !== "undefined") {
+          import("sonner").then(({ toast }) => {
+            toast.error(
+              `[API Error] ${method} ${url} - ${status}: ${errorMessage || "Unknown error"}`,
+            );
+          });
+        }
       }
     }
     const originalRequest = error.config;
