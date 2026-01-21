@@ -268,18 +268,20 @@ export default function LeaderboardPage() {
                               </Badge>
                             )}
                           </div>
-                          {entry.rankChange && entry.rankChange !== 0 && (
-                            <p
-                              className={`text-xs mt-0.5 ${
-                                entry.rankChange < 0
-                                  ? "text-green-400"
-                                  : "text-red-400"
-                              }`}
-                            >
-                              {entry.rankChange > 0 ? "+" : ""}
-                              {entry.rankChange} this week
-                            </p>
-                          )}
+                          {/* {entry.rankChange && entry.rankChange !== 0 && ( */}
+                          {typeof entry.rankChange === "number" &&
+                            entry.rankChange !== 0 && (
+                              <p
+                                className={`text-xs mt-0.5 ${
+                                  entry.rankChange < 0
+                                    ? "text-green-400"
+                                    : "text-red-400"
+                                }`}
+                              >
+                                {entry.rankChange > 0 ? "+" : ""}
+                                {entry.rankChange} this week
+                              </p>
+                            )}
                         </div>
                       </div>
 
