@@ -23,9 +23,9 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "CompSSA" }],
   icons: {
-    icon: [{ url: "/favicon.jpg", type: "image/jpeg" }],
-    shortcut: "/favicon.jpg",
-    apple: "/favicon.jpg",
+    icon: [{ url: "/favicon.png", type: "image/png" }],
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
   },
   openGraph: {
     type: "website",
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     siteName: "CompSSA DSA Hub",
     images: [
       {
-        url: "/favicon.jpg",
+        url: "/favicon.png",
         width: 512,
         height: 512,
         alt: "CompSSA DSA Hub Logo",
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     title: "CompSSA DSA Hub",
     description:
       "Data Structures & Algorithms learning platform - Practice problems, join contests, and track your progress.",
-    images: ["/favicon.jpg"],
+    images: ["/favicon.png"],
   },
 };
 
