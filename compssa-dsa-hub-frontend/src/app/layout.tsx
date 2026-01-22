@@ -27,6 +27,7 @@ export const metadata: Metadata = {
     shortcut: "/favicon.png",
     apple: "/favicon.png",
   },
+  metadataBase: new URL("https://compssa-grind-hub.vercel.app/"),
   openGraph: {
     type: "website",
     title: "CompSSA DSA Hub",
